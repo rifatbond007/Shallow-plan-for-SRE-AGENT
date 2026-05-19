@@ -92,9 +92,10 @@ helm install sre-agent ./charts/sre-agent
 |----------|-------------|
 | [ARCHITECTURE.md](sre-ai-agent/ARCHITECTURE.md) | System architecture diagrams and component details |
 | [FOLDER_STRUCTURE.md](sre-ai-agent/FOLDER_STRUCTURE.md) | Project folder structure and organization |
-| [PLAN.md](sre-ai-agent/PLAN.md) | 10-week implementation plan |
+| [PLAN.md](sre-ai-agent/plan.md) | 10-week implementation plan |
 | [COST.md](sre-ai-agent/COST.md) | Monthly operational cost breakdown |
 | [INFRASTRUCTURE.md](sre-ai-agent/INFRASTRUCTURE.md) | Cloud infrastructure and deployment |
+| [DEVOPS.md](sre-ai-agent/DEVOPS.md) | DevOps operations handbook with implementation guidelines |
 
 ## Development
 
