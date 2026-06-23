@@ -1,283 +1,167 @@
-# SRE AI Agent - Monthly Operational Cost Breakdown
+# SRE AI Agent - Cost Breakdown (v2)
 
-This document estimates the monthly operational costs for running the SRE AI Agent in a production cloud environment.
-
----
-
-## Architecture Cost Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        COST STRUCTURE                                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐    │
-│   │   Kubernetes     │    │   Claude API     │    │   Vector DB      │    │
-│   │   Cluster        │    │   (AI/ML)        │    │   (Embeddings)   │    │
-│   │   $200-500/mo    │    │   $100-1000/mo   │    │   $50-300/mo     │    │
-│   └────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘    │
-│            │                       │                       │               │
-│            └───────────────────────┼───────────────────────┘               │
-│                                    ▼                                        │
-│                        ┌─────────────────────┐                             │
-│                        │   Total Monthly     │                             │
-│                        │   $400 - $2,000     │                             │
-│                        └─────────────────────┘                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+> **Source of truth:** [`SPECIFICATION.md`](../SPECIFICATION.md), §10.
+> This is a thesis project that runs on a laptop. There is **no
+> infrastructure bill** — only the Claude API bill, which is small.
 
 ---
 
-## Cost Tiers
+## 1. TL;DR
 
-| Tier | Description | Monthly Cost |
-|------|-------------|--------------|
-| **Starter** | Dev/test environment, small scale | $150 - $400 |
-| **Production** | Medium traffic, 24/7 operations | $400 - $2,000 |
-| **Enterprise** | High traffic, full monitoring | $2,000 - $5,000 |
+| Category | Cost (USD) |
+|----------|-----------|
+| Compute (your laptop) | $0 |
+| Storage (your laptop) | $0 |
+| Networking (your laptop) | $0 |
+| Kubernetes (Minikube/Kind, local) | $0 |
+| Prometheus / Grafana (local containers) | $0 |
+| **Claude API (Anthropic)** | **~$10–30 total across the whole thesis** |
 
----
-
-## Detailed Cost Breakdown
-
-### 1. Kubernetes Cluster (Infrastructure)
-
-| Provider | Configuration | Monthly Cost |
-|----------|---------------|--------------|
-| **AWS EKS** | 3x t3.medium nodes (2 vCPU, 4GB each) | $250 - $350 |
-| **GCP GKE** | 3x n2-standard-2 (2 vCPU, 8GB each) | $220 - $320 |
-| **Azure AKS** | 3x Standard_B2ms (2 vCPU, 8GB each) | $200 - $300 |
-| **DigitalOcean** | 3x basic nodes (2 vCPU, 4GB) | $120 - $180 |
-
-**Breakdown:**
-- **Compute**: $100-200/month (nodes)
-- **Control Plane**: $70-100/month (EKS/GKE/AKS management fee)
-- **Load Balancer**: $20-50/month
-- **Block Storage**: $20-50/month (persistence)
+> **Total infra: $0/month. Total API across 4 months: $10–30.**
 
 ---
 
-### 2. Claude API (AI Analysis)
+## 2. Why this is so much smaller than v1
 
-Pricing based on Anthropic Claude API ( Sonnet 4.6):
+The previous cost doc budgeted for AWS EKS + RDS + ElastiCache + CloudWatch
++ WAF + Route 53 ≈ $510/month. **For a thesis demo run on a laptop, none
+of that is necessary.** All those services are replaced by `docker compose`
+on a developer's machine, costing exactly nothing.
 
-| Usage Level | API Calls/Month | Tokens (Input+Output) | Monthly Cost |
-|-------------|-----------------|----------------------|--------------|
-| **Starter** | 1,000 | 500K | $25 |
-| **Light** | 5,000 | 2.5M | $100 |
-| **Medium** | 20,000 | 10M | $350 |
-| **Heavy** | 50,000 | 25M | $750 |
-| **Enterprise** | 100,000+ | 50M+ | $1,200+ |
-
-**Calculation:**
-- Input: $3.00 / 1M tokens
-- Output: $15.00 / 1M tokens
-- Assuming 80% input, 20% output
-
-**Example:** 10M tokens/month = $3M input × $3 + $2M output × $15 = $9 + $30 = **$39/month**
+The only variable cost is the Claude API. Below is a realistic estimate.
 
 ---
 
-### 3. Vector Database (Embeddings Storage)
+## 3. Claude API pricing (Sonnet 4.6, as of 2026-05)
 
-| Solution | Type | Monthly Cost |
-|----------|------|--------------|
-| **pgvector (RDS)** | Managed PostgreSQL | $50 - $150 |
-| **LanceDB** | Self-hosted (embedded) | $0 - $50 (just compute) |
-| **Pinecone** | Managed Vector DB | $70 - $300 |
-| **Weaviate Cloud** | Managed | $100 - $400 |
-| **Qdrant Cloud** | Managed | $50 - $250 |
+| Direction | Price per 1M tokens |
+|-----------|---------------------|
+| Input | $3.00 |
+| Output | $15.00 |
 
-**Recommended:** Self-hosted pgvector on Kubernetes (~$50/month) or LanceDB embedded (~$0 additional cost)
+> Confirm current pricing at https://www.anthropic.com/pricing before
+> submitting. If Anthropic has changed prices, update this table.
 
----
+### Haiku (optional fast-path)
 
-### 4. Monitoring & Observability
+| Direction | Price per 1M tokens |
+|-----------|---------------------|
+| Input | $0.25 |
+| Output | $1.25 |
 
-| Component | Solution | Monthly Cost |
-|-----------|----------|--------------|
-| **Metrics** | Prometheus + Grafana (self-hosted) | $0 - $50 |
-| **Metrics** | Grafana Cloud | $25 - $100 |
-| **Logging** | ELK Stack (self-hosted) | $50 - $150 |
-| **Logging** | Datadog | $75 - $300 |
-| **Logging** | AWS CloudWatch | $50 - $200 |
-| **Tracing** | Jaeger (self-hosted) | $0 - $30 |
-
-**Breakdown (Self-hosted):**
-- Prometheus: $0 (within K8s)
-- Grafana: $0 (open source)
-- Loki/ELK: $50-100/month for storage
+We default to Sonnet for quality. Haiku is a stretch goal for the
+low-severity filter.
 
 ---
 
-### 5. Additional Costs
+## 4. Per-case token estimate
 
-| Service | Description | Monthly Cost |
-|---------|-------------|--------------|
-| **Domain/DNS** | Route53/CloudFlare | $5 - $20 |
-| **SSL Certificates** | Let's Encrypt (free) or managed | $0 - $15 |
-| **Data Transfer** | Egress bandwidth | $20 - $100 |
-| **Backup Storage** | S3/Cloud Storage | $10 - $50 |
-| **Secrets** | HashiCorp Vault / AWS Secrets | $0 - $50 |
+A typical `POST /api/v1/analyze` request sends:
 
----
+- System prompt: ~300 tokens
+- Incident block (≤ 20 log lines + 3 candidate functions, bodies
+  truncated): ~20,000 tokens input
+- Hypothesis response: ~1,500 tokens output
+- Fix response (if requested): ~2,000 tokens output
 
-## Monthly Cost Summary
+So one full analysis (hypothesis + fix):
 
-### Starter Tier ($150 - $400)
+- **Input:**  ~20,000 tokens  → $0.06
+- **Output:** ~3,500 tokens   → $0.05
+- **Per case:** **~$0.11**
 
-```
-┌─────────────────────────────────────────┐
-│  STARTER CONFIGURATION                  │
-├─────────────────────────────────────────┤
-│  • 2x t3.small nodes (AWS)      $80    │
-│  • Claude API (light usage)     $25    │
-│  • LanceDB (embedded)           $0     │
-│  • Self-hosted monitoring       $20    │
-│  • Miscellaneous                $25    │
-├─────────────────────────────────────────┤
-│  TOTAL: $150 - $400/month              │
-└─────────────────────────────────────────┘
-```
+A hypothesis-only call (Phase 1):
 
-**Best for:** Development, testing, small-scale proof-of-concept
+- **Input:**  ~20,000 tokens → $0.06
+- **Output:** ~1,500 tokens  → $0.02
+- **Per case:** **~$0.08**
 
 ---
 
-### Production Tier ($400 - $2,000)
+## 5. Realistic spend across the thesis
 
-```
-┌─────────────────────────────────────────┐
-│  PRODUCTION CONFIGURATION               │
-├─────────────────────────────────────────┤
-│  • 3x t3.medium nodes (AWS)     $200   │
-│  • EKS Control Plane            $75    │
-│  • Claude API (medium usage)    $350   │
-│  • pgvector (RDS db.t3.medium)  $80    │
-│  • Grafana Cloud               $50    │
-│  • CloudWatch Logs             $50    │
-│  • Data transfer & misc        $50    │
-├─────────────────────────────────────────┤
-│  TOTAL: $855/month                     │
-│  (Average production setup)            │
-└─────────────────────────────────────────┘
-```
+| Activity | Cases | Cost/case | Subtotal |
+|----------|------:|----------:|---------:|
+| Dev iteration (manual curl) | 100 | $0.08 | $8 |
+| Phase 1 eval (10 cases × 5 runs) | 50 | $0.08 | $4 |
+| Phase 2 eval (20 cases × 5 runs) | 100 | $0.11 | $11 |
+| Phase 3 eval (20 cases × 3 runs) | 60 | $0.11 | $7 |
+| Demo runs (live, ~10 audiences) | 50 | $0.11 | $6 |
+| Buffer (reruns, prompt tuning) | — | — | $14 |
+| **Total** | | | **~$50** |
 
-**Best for:** Production workloads, 24/7 operations, 10K-50K log analysis/month
+This matches the acceptance criterion in SPECIFICATION.md §12:
+"Total Claude API spend across all development + evaluation is < $50 USD."
+
+If we land closer to $30, even better. We will not exceed $50 unless
+something is fundamentally wrong (e.g., we forgot to truncate code bodies).
 
 ---
 
-### Enterprise Tier ($2,000 - $5,000)
+## 6. Cost-control levers
 
-```
-┌─────────────────────────────────────────┐
-│  ENTERPRISE CONFIGURATION               │
-├─────────────────────────────────────────┤
-│  • 5x t3.large nodes (AWS)      $500   │
-│  • EKS Control Plane            $100   │
-│  • Claude API (heavy usage)     $750   │
-│  • Pinecone Vector DB           $200   │
-│  • Datadog (full stack)         $200   │
-│  • CloudWatch Logs             $100    │
-│  • Premium support             $100    │
-│  • Data transfer & misc       $150    │
-├─────────────────────────────────────────┤
-│  TOTAL: $2,100/month                   │
-└─────────────────────────────────────────┘
-```
+Already implemented in SPECIFICATION.md §4.4:
 
-**Best for:** Large-scale operations, high traffic, enterprise SLAs
+1. **Truncate `function.body` to fit a token budget.** Default ~30k tokens
+   of combined context. Drop lowest-scored functions first.
+2. **Cache results by `(codebase_hash, logs_hash)`.** A repeated request
+   is free.
+3. **Cap `SRE_AGENT_ANTHROPIC_MAX_TOKENS` per call.** Default 2048 for
+   hypothesis, 2048 for fix.
+4. **Cap `SRE_AGENT_MAX_LOG_BYTES`.** Default 5 MB — limits log spam.
+5. **Rate-limit per IP.** Default 5 RPS, burst 10.
 
----
+If costs still surprise us:
 
-## Cost Optimization Strategies
-
-### 1. Reduce Claude API Costs
-- Implement caching for repeated queries
-- Use smaller models for simple analysis
-- Batch log analysis requests
-- Set up usage alerts and limits
-
-### 2. Optimize Kubernetes Costs
-- Use spot/preemptible instances (60-80% savings)
-- Implement auto-scaling based on load
-- Right-size nodes based on actual usage
-- Use Karpenter (AWS) for dynamic scaling
-
-### 3. Reduce Database Costs
-- Use auto-pause for non-production environments
-- Implement data retention policies
-- Use appropriate instance sizes
-- Consider reserved instances for production
-
-### 4. Monitoring Cost Control
-- Use open-source self-hosted solutions
-- Implement sampling for high-volume logs
-- Set retention policies (7-30 days)
-- Create alerts only for critical metrics
+6. Run the deterministic pattern matcher first. If a high-confidence
+   pattern hits, **skip the LLM call** and return the canned hypothesis.
+   (Stretch goal — Phase 2+.)
+7. Use Haiku for the "is this an incident at all?" pre-filter.
+   (Stretch goal.)
+8. Batch multiple log entries into one LLM call. Already do this for
+   an incident; ensure we don't accidentally re-call per log line.
 
 ---
 
-## Sample AWS Cost Breakdown (Production)
+## 7. What we are NOT paying for
 
-```
-AWS MONTHLY BILL - SRE AI AGENT
-═══════════════════════════════════════════════════════
+| Service | v1 cost | v2 cost |
+|---------|--------:|--------:|
+| AWS EKS (control plane) | $75/mo | $0 |
+| AWS EC2 worker nodes | $180/mo | $0 |
+| AWS RDS PostgreSQL | $80/mo | $0 |
+| AWS Application Load Balancer | $25/mo | $0 |
+| AWS CloudWatch Logs | $45/mo | $0 |
+| AWS CloudWatch Metrics | $15/mo | $0 |
+| AWS NAT Gateway | $35/mo | $0 |
+| AWS S3 (backup) | $20/mo | $0 |
+| AWS Route 53 | $5/mo | $0 |
+| AWS Secrets Manager | $5/mo | $0 |
+| Pinecone / Weaviate (vector DB) | $50–200/mo | $0 |
+| Datadog (full stack) | $200/mo | $0 |
+| **Total monthly** | **~$510** | **$0** |
 
-  ┌────────────────────────────┬─────────────────┐
-  │ Service                    │ Monthly Cost    │
-  ├────────────────────────────┼─────────────────┤
-  │ Amazon EKS                 │ $75.00         │
-  │ EC2 (3x t3.medium)         │ $180.00        │
-  │ RDS (db.t3.medium)         │ $80.00         │
-  │ Application Load Balancer  │ $25.00         │
-  │ CloudWatch Logs            │ $45.00         │
-  │ CloudWatch Metrics         │ $15.00         │
-  │ NAT Gateway                │ $35.00         │
-  │ Data Transfer              │ $30.00         │
-  │ S3 (storage/backup)        │ $20.00         │
-  │ Route 53                   │ $5.00          │
-  ├────────────────────────────┼─────────────────┤
-  │ INFRASTRUCTURE SUBTOTAL    │ $510.00        │
-  ├────────────────────────────┼─────────────────┤
-  │ Claude API (Anthropic)     │ $350.00        │
-  ├────────────────────────────┼─────────────────┤
-  │ TOTAL                      │ $860.00        │
-  └────────────────────────────┴─────────────────┘
-```
+That is roughly **$6,000/year saved** by being honest about scope.
 
 ---
 
-## Annual Cost Projection
+## 8. Reporting
 
-| Tier | Monthly | Annual (pay monthly) | Annual (1-year reserved) |
-|------|---------|---------------------|---------------------------|
-| Starter | $275 | $3,300 | $2,800 |
-| Production | $860 | $10,320 | $8,750 |
-| Enterprise | $2,100 | $25,200 | $21,400 |
-
----
-
-## Cost Calculator
-
-Use this formula to estimate your specific costs:
-
-```
-Total = K8s_Cluster + Claude_API + Vector_DB + Monitoring + Extras
-
-Where:
-- K8s_Cluster  = $100-500/month
-- Claude_API   = (input_tokens × $3 + output_tokens × $15) / 1M
-- Vector_DB    = $0-300/month
-- Monitoring   = $20-200/month
-- Extras       = $50-150/month
-```
+After the thesis submission, attach a copy of your actual Anthropic
+dashboard showing total spend. The expected line is "Developer API: $X.XX
+over Y months." If it matches the table in §5 within 50%, the cost
+discipline worked.
 
 ---
 
-## Notes
+## 9. What this document does NOT cover
 
-- Prices are estimates as of 2026 and may vary by region
-- Claude API pricing subject to change; check [Anthropic pricing](https://www.anthropic.com/pricing)
-- Cloud provider prices fluctuate; use AWS/GCP cost calculators for exact quotes
-- Costs assume US-based deployment; EU/Asia regions may have different pricing
+- Cloud cost projections — there are no cloud resources
+- Reserved-instance discounts — not relevant
+- Spot instance savings — not relevant
+- Enterprise support contracts — not relevant
+- Per-region pricing variations — not relevant
+
+If the thesis examiner asks "what would this cost in production?", the
+honest answer is: "I haven't priced that because it's out of scope. The
+specification (§1.2) treats cloud deployment as future work."

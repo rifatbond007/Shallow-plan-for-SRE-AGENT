@@ -1,137 +1,156 @@
 # SRE AI Agent
 
-An AI-powered Site Reliability Engineering agent that analyzes nginx and application logs, examines codebase, and generates root cause hypotheses.
+An AI-powered Site Reliability Engineering agent that, given operational logs and a Go codebase, **detects incidents → ranks root-cause hypotheses → proposes code-level fixes**.
 
-## Overview
+> **Read [`SPECIFICATION.md`](./SPECIFICATION.md) first.** It is the single source of truth for this project. Every other document mirrors a section of it.
 
-Build an SRE AI Agent as a capstone project that:
-1. Parses nginx and application logs
-2. Analyzes codebase and generates hypotheses for issues
-3. Debug errors automatically
-4. Deploy with Docker + Kubernetes
+## What this project does (one sentence)
 
-This is a greenfield project - designing the full architecture from scratch.
+Reads nginx + Go app logs, links the errors to candidate functions in a Go codebase via static analysis, asks Claude to reason about the cause, and returns a ranked list of hypotheses with a proposed code fix for the top one.
+
+## Quick start (5 minutes)
+
+```bash
+# 1. Clone & enter
+git clone <repo> && cd sre-ai-agent
+
+# 2. Configure
+cp .env.example .env
+# Edit .env: set SRE_AGENT_ANTHROPIC_API_KEY=sk-ant-...
+
+# 3. Run
+cd configs && docker compose up -d
+
+# 4. Verify
+curl http://localhost:8080/api/v1/healthz
+# → {"status":"ok"}
+```
+
+Then `POST /api/v1/analyze` with `{ "logs": "...", "codebase_path": "/codebase" }` and you get a JSON response with `incidents`, `hypotheses`, and `fixes`.
+
+Full contract: [`docs/API.md`](./docs/API.md) (to be written in Phase 3).
+Full deploy guide: [`docs/DEPLOY.md`](./docs/DEPLOY.md) (to be written in Phase 3).
+
+## Documentation map
+
+| Document | Purpose |
+|----------|---------|
+| **[`SPECIFICATION.md`](./SPECIFICATION.md)** | **Single source of truth.** Scope, architecture, components, API, prompts, eval, deployment, acceptance criteria. |
+| [`sre-ai-agent/ARCHITECTURE.md`](./sre-ai-agent/ARCHITECTURE.md) | Diagrams only. Mirrors spec §2. |
+| [`sre-ai-agent/FOLDER_STRUCTURE.md`](./sre-ai-agent/FOLDER_STRUCTURE.md) | Repo layout. Mirrors spec §3. |
+| [`sre-ai-agent/PLAN.md`](./sre-ai-agent/PLAN.md) | Week-by-week implementation plan. Mirrors spec §7. |
+| [`sre-ai-agent/INFRASTRUCTURE.md`](./sre-ai-agent/INFRASTRUCTURE.md) | Local deployment (Docker + Minikube/Kind + Helm). Mirrors spec §8. |
+| [`sre-ai-agent/DEVOPS.md`](./sre-ai-agent/DEVOPS.md) | CI/CD, security, runbooks. Mirrors spec §9. |
+| [`sre-ai-agent/COST.md`](./sre-ai-agent/COST.md) | Cost reality check. Mirrors spec §10. |
+| [`PROPOSAL_ENHANCED.md`](./PROPOSAL_ENHANCED.md) | Academic proposal (for the university submission). |
+| `docs/API.md` | REST + WebSocket contract. *(Phase 3)* |
+| `docs/EVAL.md` | How to run and read the evaluation. *(Phase 3)* |
+| `docs/DEPLOY.md` | Step-by-step deployment walkthrough. *(Phase 3)* |
+
+## What this project is NOT
+
+- Not a cloud-deployed, multi-region production system
+- Not a Terraform-managed infrastructure
+- Not a vector database + RAG platform
+- Not a multi-language static analyser
+- Not a service mesh demo
+- Not an auto-remediation agent (it **suggests** fixes; it does not apply them)
+
+These are conscious cuts to keep the thesis scope defensible. See [`SPECIFICATION.md` §1.2](./SPECIFICATION.md#12-non-goals-explicitly-out-of-scope).
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     SRE AI Agent System                          │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐  │
-│  │   Nginx     │    │  App Logs   │    │   Codebase          │  │
-│  │   Logs      │    │  (Go)       │    │   (Analysis)        │  │
-│  └──────┬──────┘    └──────┬──────┘    └──────────┬──────────┘  │
-│         │                  │                       │             │
-│         └────────┬─────────┘                       │             │
-│                  ▼                                 ▼             │
-│         ┌────────────────┐               ┌──────────────────┐    │
-│         │ Log Ingestion  │               │ Codebase Reader  │    │
-│         │ Service        │               │ Service          │    │
-│         └───────┬────────┘               └────────┬─────────┘    │
-│                 │                                 │              │
-│                 ▼                                 ▼              │
-│         ┌──────────────────────────────────────────────────┐    │
-│         │            Analysis Engine (AI/ML)                │    │
-│         │  - Pattern Recognition                            │    │
-│         │  - Error Classification                          │    │
-│         │  - Hypothesis Generation                         │    │
-│         │  - Root Cause Analysis                           │    │
-│         └───────────────────────┬──────────────────────────┘    │
-│                                 │                               │
-│                                 ▼                               │
-│         ┌──────────────────────────────────────────────────┐    │
-│         │              API Server (Go)                      │    │
-│         │  - REST API for queries                          │    │
-│         │  - WebSocket for streaming                       │    │
-│         │  - Alerting endpoints                            │    │
-│         └──────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-```
+See [`SPECIFICATION.md` §2](./SPECIFICATION.md#2-high-level-architecture) and [`sre-ai-agent/ARCHITECTURE.md`](./sre-ai-agent/ARCHITECTURE.md) for the full diagram and component map.
 
-## Tech Stack
+In short: **Ingest → Codebase → Analysis → API**, with Claude as the only external dependency.
 
-| Component      | Technology         | Rationale             |
-|----------------|--------------------|-----------------------|
-| Language       | Go 1.21+           | Performance, K8s native |
-| Log Processing | Fluentd/Filebeat   | Industry standard     |
-| AI Integration | Anthropic SDK      | Claude for reasoning  |
-| Vector DB      | LanceDB/pgvector   | Local embeddings      |
-| API Framework  | Gin/Echo           | Go web framework      |
-| Container      | Docker             | Build images          |
-| Orchestration  | Kubernetes         | Production deployment |
-| Monitoring     | Prometheus + Grafana | SRE best practices  |
+## Tech Stack (pinned)
 
-## Quick Start
+| Component | Technology | Version | Why |
+|-----------|------------|---------|-----|
+| Language | Go | 1.22+ | `go/parser` / `go/ast` for static analysis |
+| Web framework | Gin | v1.10+ | De facto Go web framework |
+| LLM SDK | `anthropic-sdk-go` | latest | Official |
+| Logging | `zap` | v1.27+ | Fast structured logs |
+| Metrics | `prometheus/client_golang` | v1.20+ | Standard |
+| WebSocket | `gorilla/websocket` | v1.5+ | Reliable |
+| Config | `caarlos0/env` | v11+ | Simple env loader |
+| Container | Docker | 24+ | Multi-stage builds |
+| Orchestration | Kubernetes | 1.28+ | Local via Minikube/Kind |
+| Package manager | Helm | 3.14+ | One chart, multiple values |
+| CI | GitHub Actions | — | Free for the thesis |
+
+**Explicitly not used** (kept out of scope): Terraform, Istio, vector DBs, ELK/Loki/Tempo, PagerDuty, cloud-managed K8s. See [`SPECIFICATION.md` §1.2](./SPECIFICATION.md#12-non-goals-explicitly-out-of-scope).
+
+## API surface (summary)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/v1/analyze` | Submit logs + codebase path; get back incidents, hypotheses, and a fix |
+| `GET`  | `/api/v1/hypotheses/:id` | Fetch a cached analysis result |
+| `WS`   | `/api/v1/stream` | Streaming analysis with progress events |
+| `GET`  | `/api/v1/healthz`, `/api/v1/readyz` | Liveness / readiness |
+| `GET`  | `/metrics` | Prometheus scrape endpoint |
+
+Full contract: [`SPECIFICATION.md` §4.5, §6](./SPECIFICATION.md) and (later) `docs/API.md`.
+
+## Quick start (5 minutes)
 
 ```bash
-# Clone the repository
-git clone https://github.com/rifatbond007/Shallow-plan-for-SRE-AGENT.git
-cd Shallow-plan-for-SRE-AGENT/sre-ai-agent
+# From repo root
+git clone <repo> && cd Shallow-plan-for-SRE-AGENT
 
-# Local with Docker
-docker-compose up -d
+# Configure
+cp sre-ai-agent/.env.example sre-ai-agent/.env
+# Edit .env: set SRE_AGENT_ANTHROPIC_API_KEY
 
-# Kubernetes
-helm install sre-agent ./charts/sre-agent
+# Run
+cd sre-ai-agent/configs
+docker compose up -d
+
+# Verify
+curl http://localhost:8080/api/v1/healthz
 ```
 
-## API Reference
-
-| Endpoint          | Method   | Description                |
-|-------------------|----------|----------------------------|
-| /api/v1/analyze   | POST     | Submit logs for analysis   |
-| /api/v1/hypotheses/:id | GET | Get generated hypotheses   |
-| /api/v1/health    | GET      | Health check               |
-| /api/v1/stream    | WS       | Real-time streaming        |
-| /api/v1/metrics   | GET      | Prometheus metrics         |
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE.md](sre-ai-agent/ARCHITECTURE.md) | System architecture diagrams and component details |
-| [FOLDER_STRUCTURE.md](sre-ai-agent/FOLDER_STRUCTURE.md) | Project folder structure and organization |
-| [PLAN.md](sre-ai-agent/plan.md) | 10-week implementation plan |
-| [COST.md](sre-ai-agent/COST.md) | Monthly operational cost breakdown |
-| [INFRASTRUCTURE.md](sre-ai-agent/INFRASTRUCTURE.md) | Cloud infrastructure and deployment |
-| [DEVOPS.md](sre-ai-agent/DEVOPS.md) | DevOps operations handbook with implementation guidelines |
-
-## Development
-
-### Setup
+## Local Kubernetes (optional, for the deployable demo)
 
 ```bash
-# Install dependencies
-go mod download
+# Build into Minikube's Docker daemon
+eval $(minikube docker-env)
+cd sre-ai-agent
+docker build -t sre-agent:dev .
 
-# Run locally
-make run
+helm install sre-agent ./configs/helm/sre-agent \
+  --namespace sre-agent --create-namespace
 
-# Test
-make test
+kubectl -n sre-agent port-forward svc/sre-agent 8080:8080
 ```
 
-### Testing
+## Evaluation
 
-```bash
-# Test nginx log parsing
-curl -X POST http://localhost:8080/api/v1/analyze -d @sample.json
+`make eval` runs the labeled case set in `sre-ai-agent/tests/eval/cases.json`
+and writes `sre-ai-agent/tests/eval/report.md`. Target: ≥ 0.7 top-1 accuracy,
+≥ 0.9 top-3 accuracy, ≥ 0.5 fix exactness.
 
-# Verify hypotheses response contains AI-generated insights
-```
+Full methodology: [`SPECIFICATION.md` §9](./SPECIFICATION.md#9-evaluation-methodology-a-thesis-is-judged-on-this).
 
-## Deployment
+## Cost
 
-### Kubernetes
+**$0/month** infrastructure. **~$10–50 total** Claude API across the whole
+thesis. See [`COST.md`](./sre-ai-agent/COST.md).
 
-```bash
-# Apply manifests
-kubectl apply -f sre-ai-agent/configs/k8s/
+## Documentation map
 
-# Check pods running
-kubectl get pods -l app=sre-agent
-```
+| Document | Purpose |
+|----------|---------|
+| **[`SPECIFICATION.md`](./SPECIFICATION.md)** | **Single source of truth.** |
+| [`sre-ai-agent/ARCHITECTURE.md`](./sre-ai-agent/ARCHITECTURE.md) | Diagrams (mirror of spec §2). |
+| [`sre-ai-agent/FOLDER_STRUCTURE.md`](./sre-ai-agent/FOLDER_STRUCTURE.md) | Repo layout (mirror of spec §3). |
+| [`sre-ai-agent/PLAN.md`](./sre-ai-agent/PLAN.md) | Week-by-week plan (mirror of spec §7). |
+| [`sre-ai-agent/INFRASTRUCTURE.md`](./sre-ai-agent/INFRASTRUCTURE.md) | Local deploy (mirror of spec §8). |
+| [`sre-ai-agent/DEVOPS.md`](./sre-ai-agent/DEVOPS.md) | CI/CD + runbooks (mirror of spec §9). |
+| [`sre-ai-agent/COST.md`](./sre-ai-agent/COST.md) | Cost (mirror of spec §10). |
+| [`PROPOSAL_ENHANCED.md`](./PROPOSAL_ENHANCED.md) | Academic proposal (for the university submission). |
 
 ## License
 

@@ -1,803 +1,383 @@
-# SRE AI Agent - Infrastructure Architecture
+# SRE AI Agent - Local Infrastructure (v2)
 
-> **Platform Lead Engineer Note**: This document outlines the infrastructure design for deploying and operating the SRE AI Agent at scale. It covers cloud architecture, networking, CI/CD, monitoring, security, and disaster recovery.
-
----
-
-## 1. Infrastructure Overview
-
-### 1.1 High-Level Architecture
-
-```
-+=========================================================================+
-|                         CLOUD INFRASTRUCTURE                            |
-+=========================================================================+
-
-+----------------------+     +----------------------+     +------------------+
-|   USER TRAFFIC LAYER     |     |                      |     |                  |
-+----------------------+     +----------------------+     +------------------+
-|  +-------------+  |     |  +-------------+  |     |  +-----------+  |
-|  |  Route 53   |--+----->|  | Cloud Front |--+----->|  |    WAF    |  |
-|  |   (DNS)     |  |     |  |    (ELB)    |  |     |  | Firewall  |  |
-|  +-------------+  |     |  +-------------+  |     |  +-----------+  |
-+----------------------+     +----------------------+     +------------------+
-                                    |
-                                    v
-+=========================================================================+
-|                    KUBERNETES CLUSTER (EKS/GKE/AKS)                     |
-+=========================================================================+
-|  +---------------------------------------------------------------+    |
-|  |                   Namespace: sre-agent                         |    |
-|  +---------------------------------------------------------------+    |
-|  |  +---------+  +---------+  +---------+  +---------+             |    |
-|  |  | Pod 1   |  | Pod 2   |  | Pod 3   |  | Pod N   |             |    |
-|  |  |sre-agent|  |sre-agent|  |sre-agent|  |sre-agent|             |    |
-|  |  |  :8080  |  |  :8080  |  |  :8080  |  |  :8080  |             |    |
-|  |  +---------+  +---------+  +---------+  +---------+             |    |
-|  |       |            |            |            |                    |    |
-|  |       +------------+------------+------------+                    |    |
-|  |                      |                                            |    |
-|  |                      v                                            |    |
-|  |              +-----------------+                                  |    |
-|  |              | Service         |                                  |    |
-|  |              | ClusterIP :8080 |                                  |    |
-|  |              +-----------------+                                  |    |
-|  +---------------------------------------------------------------+    |
-+=========================================================================+
-                                    |
-                                    v
-+=========================================================================+
-|                           DATA LAYER                                    |
-+=========================================================================+
-|  +-------------+      +-------------+      +-------------+             |
-|  | PostgreSQL  |      |   Redis     |      |  S3/MinIO   |             |
-|  | RDS/Aurora  |      |ElastiCache  |      |  (Storage)  |             |
-|  |   :5432     |      |   :6379     |      |             |             |
-|  +-------------+      +-------------+      +-------------+             |
-+=========================================================================+
-
-+=========================================================================+
-|                        EXTERNAL SERVICES                                |
-+=========================================================================+
-|  +-------------+      +-------------+      +-------------+             |
-|  |  Anthropic  |      | Prometheus  |      |  Grafana    |             |
-|  |Claude API   |      |  (Metrics)  |      |(Dashboards) |             |
-|  +-------------+      +-------------+      +-------------+             |
-+=========================================================================+
-```
+> **Source of truth:** [`SPECIFICATION.md`](../SPECIFICATION.md), §8.
+> This document covers the **local** deployment story only.
+> Cloud (AWS/GCP/Azure) is explicitly out of scope — see SPECIFICATION.md §1.2.
+> If anything here contradicts the spec, the spec wins.
 
 ---
 
-## 2. Cloud Provider Configuration
+## 1. Why local-only
 
-### 2.1 AWS (Recommended)
+The previous plan aimed at a production-grade cloud setup. That is the right
+goal for a SRE platform team; **it is the wrong goal for a BAIUST thesis.**
 
-| Resource | Service | Configuration |
-|----------|---------|---------------|
-| Compute | EKS | 3 nodes, t3.medium, auto-scaling |
-| Database | RDS PostgreSQL | db.t3.medium, multi-AZ |
-| Cache | ElastiCache Redis | cache.t3.medium |
-| Storage | S3 | Standard tier, lifecycle policies |
-| DNS | Route 53 | Health checks enabled |
-| Load Balancer | ALB | Application Load Balancer |
-| WAF | AWS WAF | Rate limiting, IP blocking |
-| Secrets | Secrets Manager | Auto-rotation enabled |
-| Monitoring | CloudWatch | Logs, metrics, alarms |
+This project runs end-to-end on a single laptop with Docker and (optionally)
+Minikube or Kind. A reviewer can reproduce everything in 10 minutes. That
+property is worth more than a Terraform module that nobody will run.
 
-### 2.2 Kubernetes Cluster Specification
+---
+
+## 2. Components on the laptop
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Laptop                                                      │
+│                                                              │
+│  ┌─────────────────────────┐    ┌────────────────────────┐  │
+│  │  Docker Desktop /       │    │  Minikube / Kind       │  │
+│  │  docker compose         │    │  (optional)            │  │
+│  │                         │    │                        │  │
+│  │  ┌───────────────────┐  │    │  ┌──────────────────┐  │  │
+│  │  │ sre-agent         │  │    │  │ sre-agent Pod    │  │  │
+│  │  │ :8080             │  │    │  │ :8080            │  │  │
+│  │  └───────────────────┘  │    │  └──────────────────┘  │  │
+│  │  ┌───────────────────┐  │    │                        │  │
+│  │  │ prometheus :9090  │  │    │  (Helm chart installed │  │
+│  │  └───────────────────┘  │    │   into default ns)     │  │
+│  │  ┌───────────────────┐  │    │                        │  │
+│  │  │ grafana :3000     │  │    │                        │  │
+│  │  └───────────────────┘  │    │                        │  │
+│  └─────────────────────────┘    └────────────────────────┘  │
+│                                                              │
+│  Volumes:                                                    │
+│   • ./tests/data/code/sample-app  →  /codebase (ro)          │
+│   • sre-cache                    →  /tmp/sre-agent/cache    │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+There is no database, no Redis, no S3, no NAT gateway, no VPC. The agent
+process is the system.
+
+---
+
+## 3. Container
+
+### 3.1 Image
+
+- **Base build:** `golang:1.22-alpine`
+- **Base run:** `alpine:3.20`
+- **Multi-stage build** with CGO disabled, stripped binary
+- Image size target: **< 50 MB**
+- Runs as non-root user (`appuser`, uid 10001)
+- Read-only root filesystem; writable `/tmp` and `/cache`
+- Healthcheck via `wget -q -O /dev/null http://localhost:8080/api/v1/healthz` (no curl needed → smaller image)
+
+### 3.2 Dockerfile
+
+```dockerfile
+# Build stage
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /src
+RUN apk add --no-cache git ca-certificates
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath -ldflags="-s -w" \
+    -o /out/sre-agent ./cmd/agent
+
+# Run stage
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates wget tzdata && \
+    adduser -D -u 10001 -g '' appuser
+
+WORKDIR /app
+COPY --from=builder /out/sre-agent /usr/local/bin/sre-agent
+COPY prompts /app/prompts
+COPY configs/prometheus /app/configs/prometheus
+
+USER appuser
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O /dev/null http://localhost:8080/api/v1/healthz || exit 1
+
+ENTRYPOINT ["sre-agent"]
+```
+
+---
+
+## 4. docker-compose (the primary demo path)
+
+### 4.1 `configs/docker-compose.yml`
 
 ```yaml
-# EKS Cluster Configuration
-cluster:
-  name: sre-agent-prod
-  version: 1.28
-  region: us-east-1
+services:
+  sre-agent:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: sre-agent:dev
+    container_name: sre-agent
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../.env
+    environment:
+      SRE_AGENT_LOG_LEVEL: info
+      SRE_AGENT_CODEBASE_PATH: /codebase
+      SRE_AGENT_CODEBASE_CACHE_DIR: /cache
+    volumes:
+      - ../tests/data/code/sample-app:/codebase:ro
+      - sre-cache:/cache
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/api/v1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [sre]
 
-  # Node Groups
-  nodeGroups:
-    - name: sre-agent-nodes
-      instanceType: t3.medium
-      minSize: 2
-      maxSize: 10
-      desiredCapacity: 3
-      volumeSize: 50
-      volumeType: gp3
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: sre-prom
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [sre]
 
-  # Add-ons
-  addons:
-    - name: vpc-cni
-    - name: coredns
-    - name: kube-proxy
-    - name: aws-ebs-csi-driver
-    - name: metrics-server
-    - name: cluster-autoscaler
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: sre-grafana
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on: [prometheus]
+    networks: [sre]
 
-# Network Configuration
-networking:
-  vpc:
-    cidr: 10.0.0.0/16
-    azs: [us-east-1a, us-east-1b, us-east-1c]
-    privateSubnets:
-      - 10.0.1.0/24
-      - 10.0.2.0/24
-      - 10.0.3.0/24
-    publicSubnets:
-      - 10.0.101.0/24
-      - 10.0.102.0/24
-      - 10.0.103.0/24
+volumes:
+  sre-cache:
+
+networks:
+  sre:
+    driver: bridge
 ```
 
----
-
-## 3. Network Architecture
-
-### 3.1 VPC Design
-
-```
-+=========================================================================+
-|                          VPC (10.0.0.0/16)                             |
-+=========================================================================+
-
-+=========================================================================+
-|  PUBLIC SUBNETS (10.0.101.0/24 | 10.0.102.0/24 | 10.0.103.0/24)      |
-+=========================================================================+
-|  +-------------+      +-------------+      +-------------+              |
-|  |  NAT GW 1  |      |  NAT GW 2  |      |  NAT GW 3  |              |
-|  |us-east-1a  |      |us-east-1b  |      |us-east-1c  |              |
-|  +-------------+      +-------------+      +-------------+              |
-+=========================================================================+
-
-+=========================================================================+
-|  PRIVATE SUBNETS - WORKER NODES (10.0.1.0/24 | 10.0.2.0/24 | 10.0.3.0/24) |
-+=========================================================================+
-|  +---------------------------------------------------------------+    |
-|  |                        EKS CLUSTER                             |    |
-|  +---------------------------------------------------------------+    |
-|  |  +-------+  +-------+  +-------+  +-------+  +-------+     |    |
-|  |  | Pod 1 |  | Pod 2 |  | Pod 3 |  | Pod 4 |  |Pod N  |     |    |
-|  |  +-------+  +-------+  +-------+  +-------+  +-------+     |    |
-|  |  |sre-   |  |sre-   |  |sre-   |  |sre-   |  |sre-  |     |    |
-|  |  |agent  |  |agent  |  |agent  |  |agent  |  |agent |     |    |
-|  |  +-------+  +-------+  +-------+  +-------+  +-------+     |    |
-|  +---------------------------------------------------------------+    |
-+=========================================================================+
-
-+=========================================================================+
-|  DATABASE SUBNETS (10.0.11.0/24 | 10.0.12.0/24 | 10.0.13.0/24)       |
-+=========================================================================+
-|  +-------------+      +-------------+      +-------------+              |
-|  | PostgreSQL  |      |    Redis    |      |   MinIO     |              |
-|  |  Primary    |      |   Cluster   |      |   (Local)   |              |
-|  +-------------+      +-------------+      +-------------+              |
-+=========================================================================+
-```
-
-### 3.2 Security Groups
-
-| Security Group | Inbound | Outbound | Purpose |
-|----------------|---------|----------|---------|
-| `sg-eks-nodes` | All from VPC | All | EKS worker nodes |
-| `sg-sre-agent` | 8080 from SG-EKS-NODES | All | SRE Agent pods |
-| `sg-postgres` | 5432 from SG-SRE-AGENT | - | PostgreSQL |
-| `sg-redis` | 6379 from SG-SRE-AGENT | - | Redis |
-| `sg-alb` | 80, 443 from Anywhere | 8080 to SG-SRE-AGENT | Load Balancer |
-
----
-
-## 4. CI/CD Pipeline
-
-### 4.1 Pipeline Architecture
-
-```
-+=========================================================================+
-|                              CI/CD PIPELINE                             |
-+=========================================================================+
-
-Pipeline Flow:
-+-------------+     +-----------+     +---------+     +---------+     +---------+
-|    CODE     |---->|   BUILD   |---->|  TEST   |---->|  DOCKER |---->| DEPLOY  |
-|    PUSH     |     |           |     |         |     |  BUILD  |     |  to K8s  |
-+-------------+     +-----------+     +---------+     +---------+     +---------+
-                                              |
-                                              v
-                                    +-------------------+
-                                    |    (if main)      |
-                                    +-------------------+
-
-+=========================================================================+
-|                         GITHUB ACTIONS STEPS                            |
-+=========================================================================+
-  +-------------+   +-------------+   +-------------+
-  |  Checkout   |   |  Lint &     |   |   Docker    |
-  |   Code      |-->|   Test      |-->|  Build Push |
-  +-------------+   +-------------+   +-------------+
-         |                |                |
-         v                v                v
-  +-------------+   +-------------+   +-------------+
-  |  Security   |   |    K8s      |   |   Smoke     |
-  |    Scan     |   |   Deploy    |   |   Tests     |
-  +-------------+   +-------------+   +-------------+
-```
-
-### 4.2 GitHub Actions Workflow
-
-```yaml
-# .github/workflows/ci-cd.yml
-name: CI/CD Pipeline
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
-jobs:
-  # ─────────────────────────────────────────────────────────────
-  # Stage 1: Code Quality
-  # ─────────────────────────────────────────────────────────────
-  code-quality:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          args: --timeout=5m
-
-      - name: Run gosec
-        run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec -fmt sarif -out gosec-results.sarif ./...
-
-      - name: Upload security results
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: gosec-results.sarif
-
-  # ─────────────────────────────────────────────────────────────
-  # Stage 2: Test
-  # ─────────────────────────────────────────────────────────────
-  test:
-    needs: code-quality
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run unit tests
-        run: |
-          go test -v -race -coverprofile=coverage.out ./...
-          go tool cover -func=coverage.out
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage.out
-
-  # ─────────────────────────────────────────────────────────────
-  # Stage 3: Build and Push Docker Image
-  # ─────────────────────────────────────────────────────────────
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ─────────────────────────────────────────────────────────────
-  # Stage 4: Deploy to Kubernetes
-  # ─────────────────────────────────────────────────────────────
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Deploy to EKS
-        uses: kubectl/kubectl-setup@v1
-        with:
-          kubeconfig: ${{ secrets.KUBECONFIG }}
-
-      - name: Update deployment image
-        run: |
-          export KUBECONFIG=${{ secrets.KUBECONFIG }}
-          kubectl set image deployment/sre-agent \
-            sre-agent=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            -n sre-agent
-
-      - name: Verify deployment
-        run: |
-          export KUBECONFIG=${{ secrets.KUBECONFIG }}
-          kubectl rollout status deployment/sre-agent -n sre-agent --timeout=300s
-
-      - name: Run smoke tests
-        run: |
-          export KUBECONFIG=${{ secrets.KUBECONFIG }}
-          kubectl run smoke-test --image=curlimages/curl --restart=Never \
-            -- curl -f http://sre-agent:8080/api/v1/health
-          kubectl wait --for=condition=complete job/smoke-test --timeout=60s
-```
-
-### 4.3 Deployment Environments
-
-| Environment | Cluster | Replicas | Resources | Auto-scaling |
-|-------------|---------|----------|-----------|--------------|
-| Development | dev-cluster | 1 | 512Mi, 0.5 CPU | No |
-| Staging | staging-cluster | 2 | 1Gi, 1 CPU | Yes (2-5) |
-| Production | prod-cluster | 3-10 | 2Gi, 2 CPU | Yes (3-20) |
-
----
-
-## 5. Monitoring & Observability
-
-### 5.1 Monitoring Stack
-
-> **Note**: Ensure Prometheus is configured to scrape the SRE Agent metrics endpoint at `/api/v1/metrics`.
-
-```
-+=========================================================================+
-|                          OBSERVABILITY STACK                           |
-+=========================================================================+
-
-METRICS FLOW:
-+-------------+      +-------------+      +-------------+      +-------------+
-| SRE Agent   |---->| Prometheus  |---->|   Grafana   |      | PagerDuty   |
-| (Metrics)   |     |  (Scrape)   |     |(Dashboard)  |      |  (On-Call)  |
-+-------------+     +-------------+      +-------------+      +-------------+
-                              |                 |
-                              v                 |
-                      +-------------+           |
-                      |AlertManager|           |
-                      +-------------+           |
-                             |                  |
-                             v                  |
-                      +-------------+           |
-                      |   PagerDuty|<----------+
-                      +-------------+
-
-+=========================================================================+
-| LOGGING FLOW                                                             |
-+=========================================================================+
-+-------------+      +-------------+      +-------------+      +-------------+
-| SRE Agent   |---->| Fluent Bit  |---->|    Loki     |---->|   Grafana   |
-+-------------+      +-------------+      +-------------+      +-------------+
-
-+=========================================================================+
-| TRACING FLOW                                                             |
-+=========================================================================+
-+-------------+      +-------------+      +-------------+
-| SRE Agent   |---->|   Tempo     |---->|   Grafana   |
-+-------------+      +-------------+      +-------------+
-```
-
-### 5.2 Key Metrics
-
-| Metric | Type | Description | Alert Threshold |
-|--------|------|-------------|-----------------|
-| `sre_agent_requests_total` | Counter | Total API requests | N/A |
-| `sre_agent_request_duration_seconds` | Histogram | Request latency | p99 > 5s |
-| `sre_agent_analyze_total` | Counter | Analysis requests | N/A |
-| `sre_agent_hypothesis_generated_total` | Counter | Hypotheses generated | N/A |
-| `sre_agent_claude_api_calls_total` | Counter | Claude API calls | N/A |
-| `sre_agent_claude_api_errors_total` | Counter | Claude API errors | > 5% |
-| `sre_agent_active_websockets` | Gauge | Active WS connections | > 1000 |
-| `sre_agent_codebase_parse_duration` | Histogram | Code parsing time | p95 > 30s |
-
-### 5.3 Grafana Dashboards
-
-> **Note**: For Grafana provisioning, use the dashboard JSON directly without the `"dashboard"` wrapper. Below is the complete dashboard definition:
-
-```json
-{
-  "title": "SRE AI Agent Overview",
-  "panels": [
-    {
-      "title": "Request Rate",
-      "type": "timeseries",
-      "targets": [
-        {"expr": "rate(sre_agent_requests_total[5m])", "legendFormat": "{{method}} {{path}}"}
-      ]
-    },
-    {
-      "title": "Latency (p50, p95, p99)",
-      "type": "timeseries",
-      "targets": [
-        {"expr": "histogram_quantile(0.50, rate(sre_agent_request_duration_seconds_bucket[5m]))", "legendFormat": "p50"},
-        {"expr": "histogram_quantile(0.95, rate(sre_agent_request_duration_seconds_bucket[5m]))", "legendFormat": "p95"},
-        {"expr": "histogram_quantile(0.99, rate(sre_agent_request_duration_seconds_bucket[5m]))", "legendFormat": "p99"}
-      ]
-    },
-    {
-      "title": "Analysis Success Rate",
-      "type": "gauge",
-      "targets": [
-        {"expr": "rate(sre_agent_hypothesis_generated_total[5m]) / rate(sre_agent_analyze_total[5m])"}
-      ]
-    },
-    {
-      "title": "Claude API Error Rate",
-      "type": "timeseries",
-      "targets": [
-        {"expr": "rate(sre_agent_claude_api_errors_total[5m]) / rate(sre_agent_claude_api_calls_total[5m])", "legendFormat": "error rate"}
-      ]
-    }
-  ]
-}
-```
-
----
-
-## 6. Security Architecture
-
-> **Important**: Security should be reviewed quarterly and updated based on latest CVE announcements.
-
-### 6.1 Security Layers
-
-```
-+=========================================================================+
-|                         SECURITY LAYERS                                |
-+=========================================================================+
-
-+=========================================================================+
-|  LAYER 1: EDGE SECURITY                                                |
-+=========================================================================+
-|  +------------------------------------------------------------------+  |
-|  |  WAF (Web Application Firewall)                                  |  |
-|  |  DDoS Protection (CloudFront)                                    |  |
-|  |  Rate Limiting                                                   |  |
-|  +------------------------------------------------------------------+  |
-+=========================================================================+
-                                    |
-                                    v
-+=========================================================================+
-|  LAYER 2: NETWORK SECURITY                                            |
-+=========================================================================+
-|  +------------------------------------------------------------------+  |
-|  |  VPC Isolation                                                   |  |
-|  |  Security Groups                                                |  |
-|  |  Private Subnets                                                |  |
-|  |  TLS/SSL Termination                                            |  |
-|  +------------------------------------------------------------------+  |
-+=========================================================================+
-                                    |
-                                    v
-+=========================================================================+
-|  LAYER 3: APPLICATION SECURITY                                        |
-+=========================================================================+
-|  +------------------------------------------------------------------+  |
-|  |  API Authentication (JWT/OAuth)                                 |  |
-|  |  Input Validation                                               |  |
-|  |  SQL Injection Prevention                                       |  |
-|  |  XSS Protection                                                 |  |
-|  +------------------------------------------------------------------+  |
-+=========================================================================+
-                                    |
-                                    v
-+=========================================================================+
-|  LAYER 4: DATA SECURITY                                               |
-+=========================================================================+
-|  +------------------------------------------------------------------+  |
-|  |  Encryption at Rest (KMS)                                      |  |
-|  |  Encryption in Transit                                         |  |
-|  |  Secrets Management                                            |  |
-|  |  Key Rotation                                                   |  |
-|  +------------------------------------------------------------------+  |
-+=========================================================================+
-```
-
-### 6.2 Secrets Management
-
-| Secret | Storage | Rotation |
-|--------|---------|----------|
-| `ANTHROPIC_API_KEY` | AWS Secrets Manager | 90 days |
-| `POSTGRES_PASSWORD` | AWS Secrets Manager | 30 days |
-| `REDIS_PASSWORD` | AWS Secrets Manager | 30 days |
-| `JWT_SECRET` | AWS Secrets Manager | 180 days |
-
-### 6.3 IAM Roles & Policies
-
-```yaml
-# EKS Pod Execution Role
-- Policy: AmazonEKSWorkerNodePolicy
-- Policy: AmazonEKS_CNI_Policy
-- Policy: AmazonEBSCSIDriverPolicy
-- Policy: SecretsManagerReadWrite (for pod)
-
-# SRE Agent Service Account Role
-- Policy: Allow describe pods
-- Policy: Allow read secrets
-- Policy: Allow CloudWatch logs
-```
-
----
-
-## 7. Backup & Disaster Recovery
-
-> **Note**: Test backup restoration procedures quarterly to ensure RTO/RPO targets are met.
-
-### 7.1 Backup Strategy
-
-| Component | Backup Method | Frequency | Retention |
-|-----------|---------------|-----------|-----------|
-| PostgreSQL | AWS RDS Automated Backups | Daily | 30 days |
-| PostgreSQL | Point-in-time Recovery | Continuous | 35 days |
-| Redis | AOF + RDB | Every 5 min | 7 days |
-| Config Files | Git | On change | Forever |
-| Secrets | AWS Secrets Manager | N/A | Managed |
-| Docker Images | ECR | Every push | 90 days |
-
-### 7.2 Disaster Recovery Plan
-
-```
-+=========================================================================+
-|                  DISASTER RECOVERY PROCEDURE                          |
-+=========================================================================+
-
-+-------------------------------------------------------------------------+
-|  PHASE 1: DETECTION (0-5 min)                                          |
-+-------------------------------------------------------------------------+
-|  +------------------------------------------------------------------+  |
-|  |  > Prometheus alerts trigger                                     |  |
-|  |  > PagerDuty notifies on-call                                    |  |
-|  |  > Auto-scaling triggers                                         |  |
-|  +------------------------------------------------------------------+  |
-+=========================================================================+
-
-+-------------------------------------------------------------------------+
-|  PHASE 2: CONTAINMENT (5-15 min)                                     |
-+-------------------------------------------------------------------------+
-|  +------------------------------------------------------------------+  |
-|  |  > Isolate affected pods                                         |  |
-|  |  > Enable failover mode                                         |  |
-|  |  > Route traffic to healthy nodes                                |  |
-|  +------------------------------------------------------------------+  |
-+=========================================================================+
-
-+-------------------------------------------------------------------------+
-|  PHASE 3: RECOVERY (15-60 min)                                       |
-+-------------------------------------------------------------------------+
-|  +------------------------------------------------------------------+  |
-|  |  > Restore from latest backup                                     |  |
-|  |  > Deploy new pods                                              |  |
-|  |  > Verify health checks                                         |  |
-|  +------------------------------------------------------------------+  |
-+=========================================================================+
-
-+-------------------------------------------------------------------------+
-|  PHASE 4: POST-RECOVERY (60+ min)                                    |
-+-------------------------------------------------------------------------+
-|  +------------------------------------------------------------------+  |
-|  |  > Run smoke tests                                               |  |
-|  > Update stakeholders                                            |  |
-|  > Document incident                                              |  |
-|  +------------------------------------------------------------------+  |
-+=========================================================================+
-```
-
-### 7.3 RTO/RPO Targets
-
-| Recovery Objective | Target | Implementation |
-|--------------------|--------|----------------|
-| RTO (Recovery Time Objective) | < 15 min | Multi-AZ deployment, auto-failover |
-| RPO (Recovery Point Objective) | < 5 min | Redis AOF, PostgreSQL continuous backup |
-
----
-
-## 8. Cost Optimization
-
-> **Tip**: Enable AWS Cost Explorer alerts to notify when spending exceeds budget thresholds.
-
-### 8.1 Cost Breakdown (Monthly - AWS)
-
-| Resource | Size | Monthly Cost (Estimate) |
-|----------|------|------------------------|
-| EKS Cluster | 3 t3.medium | $150 |
-| EKS Worker Nodes | 3 t3.medium | $200 |
-| RDS PostgreSQL | db.t3.medium | $150 |
-| ElastiCache Redis | cache.t3.medium | $80 |
-| S3 Storage | 50 GB | $5 |
-| Data Transfer | 100 GB | $10 |
-| CloudWatch | Basic | $50 |
-| Route 53 | 1 hosted zone | $1 |
-| **Total** | | **~$646/month** |
-
-### 8.2 Optimization Recommendations
-
-- Use spot instances for non-production environments (60-70% savings)
-- Enable EKS cluster auto-scaler
-- Use S3 Intelligent-Tiering for logs
-- Implement request caching to reduce API calls
-- Use reserved instances for production (40% savings)
-
----
-
-## 9. Environment-Specific Configurations
-
-> **Important**: Never use production values in dev/staging environments. Always use separate AWS accounts for isolation.
-
-### 9.1 Development Environment
-
-```yaml
-# dev-values.yaml
-replicas: 1
-
-resources:
-  limits:
-    cpu: "500m"
-    memory: "512Mi"
-  requests:
-    cpu: "250m"
-    memory: "256Mi"
-
-autoscaling:
-  enabled: false
-
-monitoring:
-  enabled: true
-  sampleRate: 1.0
-```
-
-### 9.2 Production Environment
-
-```yaml
-# prod-values.yaml
-replicas: 3
-
-resources:
-  limits:
-    cpu: "2000m"
-    memory: "2Gi"
-  requests:
-    cpu: "1000m"
-    memory: "1Gi"
-
-autoscaling:
-  enabled: true
-  minReplicas: 3
-  maxReplicas: 20
-  targetCPU: 70
-
-monitoring:
-  enabled: true
-  sampleRate: 0.1
-
-security:
-  readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 1000
-
-networkPolicy:
-  enabled: true
-
-persistence:
-  enabled: true
-  size: 10Gi
-```
-
----
-
-## 10. Runbooks
-
-> **Note**: These runbooks should be automated where possible and integrated with PagerDuty for on-call escalation.
-
-### 10.1 High CPU Usage
+### 4.2 Bring-up
 
 ```bash
-# 1. Check pod status
-kubectl top pods -n sre-agent
+# From repo root
+cp sre-ai-agent/.env.example sre-ai-agent/.env
+# Edit .env: set SRE_AGENT_ANTHROPIC_API_KEY
 
-# 2. Describe problematic pod
-kubectl describe pod <pod-name> -n sre-agent
+cd sre-ai-agent/configs
+docker compose up -d
 
-# 3. Check logs
-kubectl logs <pod-name> -n sre-agent --previous
-
-# 4. If needed, restart
-kubectl rollout restart deployment/sre-agent -n sre-agent
-```
-
-### 10.2 Claude API Failures
-
-```bash
-# 1. Check API key validity
-kubectl get secret sre-agent-secrets -n sre-agent
-
-# 2. Check rate limits
-curl http://sre-agent:8080/api/v1/metrics | grep claude
-
-# 3. Enable fallback mode
-kubectl set env deployment/sre-agent FALLBACK_MODE=true -n sre-agent
-```
-
-### 10.3 Database Connection Issues
-
-```bash
-# 1. Check PostgreSQL status
-kubectl exec -it <pod> -n sre-agent -- psql -U postgres -c "SELECT 1"
-
-# 2. Check connection pool
-curl http://sre-agent:8080/api/v1/health | jq .db_pool
-
-# 3. Restart application
-kubectl rollout restart deployment/sre-agent -n sre-agent
+# Wait for healthy
+docker compose ps
+curl -fsS http://localhost:8080/api/v1/healthz
 ```
 
 ---
 
-## Summary
+## 5. Kubernetes (Minikube / Kind) — optional
 
-This infrastructure document provides a production-grade setup for the SRE AI Agent. Key takeaways:
+> The thesis demo uses docker-compose. This section is here for the
+> "deployable" requirement in the acceptance criteria.
 
-1. **High Availability**: Multi-AZ deployment with auto-scaling
-2. **Security**: Defense-in-depth with WAF, VPC, and Secrets Manager
-3. **Observability**: Full Prometheus/Grafana/Loki stack
-4. **CI/CD**: Automated GitHub Actions pipeline
-5. **Disaster Recovery**: RTO < 15 min, RPO < 5 min
-6. **Cost**: ~$646/month for production (AWS)
+### 5.1 Prereqs
 
-For implementation, follow the Kubernetes manifests in `configs/k8s/` and use the Helm chart in `charts/sre-agent`.
+```bash
+# One of:
+brew install minikube
+brew install kind
+
+# kubectl + helm
+brew install kubectl helm
+```
+
+### 5.2 Plain manifests (`configs/k8s/`)
+
+```
+configs/k8s/
+├── namespace.yaml
+├── configmap.yaml
+├── secret.yaml.example      # copy to secret.yaml and fill in
+├── deployment.yaml
+├── service.yaml
+└── ingress.yaml             # optional, only if nginx-ingress is installed
+```
+
+`deployment.yaml` (sketch):
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sre-agent
+  namespace: sre-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: sre-agent }
+  template:
+    metadata:
+      labels: { app: sre-agent }
+    spec:
+      containers:
+        - name: sre-agent
+          image: sre-agent:dev          # use `eval $(minikube docker-env)` + `docker build`
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8080, name: http }]
+          envFrom:
+            - configMapRef: { name: sre-agent-config }
+            - secretRef:    { name: sre-agent-secrets }
+          readinessProbe:
+            httpGet: { path: /api/v1/readyz, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /api/v1/healthz, port: 8080 }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "200m", memory: "256Mi" }
+            limits:   { cpu: "1",    memory: "512Mi" }
+          volumeMounts:
+            - { name: cache, mountPath: /cache }
+            - { name: codebase, mountPath: /codebase, readOnly: true }
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: codebase
+          hostPath:
+            path: /path/to/sample-app    # adjust for your laptop
+```
+
+### 5.3 Helm chart (`configs/helm/sre-agent/`)
+
+Standard Helm v3 chart with:
+
+- `Chart.yaml` (apiVersion v2)
+- `values.yaml` (defaults)
+- `values-dev.yaml` (dev overrides: 1 replica, verbose logs, no resource limits)
+- `templates/deployment.yaml`
+- `templates/service.yaml`
+- `templates/configmap.yaml`
+- `templates/secret.yaml`
+- `templates/ingress.yaml`
+
+### 5.4 Bring-up with Minikube
+
+```bash
+# Build image inside Minikube's Docker daemon
+eval $(minikube docker-env)
+cd sre-ai-agent
+docker build -t sre-agent:dev .
+
+# Install
+helm install sre-agent ./configs/helm/sre-agent \
+    --namespace sre-agent --create-namespace
+
+# Verify
+kubectl -n sre-agent get pods
+kubectl -n sre-agent port-forward svc/sre-agent 8080:8080
+curl http://localhost:8080/api/v1/healthz
+```
+
+---
+
+## 6. Volumes and persistence
+
+The agent persists only one thing: the AST cache.
+
+| Volume | Mount | Size | Lifecycle |
+|--------|-------|------|-----------|
+| `sre-cache` (compose) / `emptyDir` (k8s) | `/cache` | 256 MB | Rebuilt on first run; OK to lose |
+
+The codebase is mounted read-only. Logs are passed in the request, not stored.
+
+---
+
+## 7. Networking
+
+- **Compose:** all services on a private bridge network `sre`. Only
+  `sre-agent`, `prometheus`, and `grafana` are published to `localhost`.
+- **Minikube/Kind:** `ClusterIP` service; access via `kubectl port-forward`
+  or via the optional Ingress.
+- **Outbound:** the agent needs HTTPS to `api.anthropic.com`. Both compose
+  and K8s default-allow egress.
+
+There is **no** public ingress in the default config. If you need one,
+add `configs/k8s/ingress.yaml` with `nginx.ingress.kubernetes.io/...`
+annotations and a TLS secret pointing to a local cert (e.g. mkcert).
+
+---
+
+## 8. Observability (local)
+
+### 8.1 Prometheus scrape
+
+`configs/prometheus/prometheus.yml`:
+
+```yaml
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: sre-agent
+    static_configs:
+      - targets: ["sre-agent:8080"]
+    metrics_path: /metrics
+```
+
+### 8.2 Grafana
+
+A single dashboard `sre-agent.json` with four panels:
+
+1. Request rate (`rate(sre_agent_http_requests_total[5m])`)
+2. Latency p50/p95/p99 (`histogram_quantile(...)`)
+3. Hypotheses generated per minute
+4. Claude API error rate
+
+Provision via `configs/grafana/provisioning/datasources/prometheus.yml`
+and `configs/grafana/provisioning/dashboards/sre-agent.yml`.
+
+### 8.3 Logs
+
+The agent writes structured JSON to stdout (`zap`). `docker compose logs -f
+sre-agent` is the demo path. No log aggregation stack — that would be
+overkill for one container.
+
+---
+
+## 9. Backup, DR, RTO/RPO
+
+**Not applicable.** Everything is reproducible from `git clone`. There is
+no state worth backing up. The AST cache rebuilds in seconds. The eval
+dataset is committed.
+
+---
+
+## 10. Cost
+
+**$0/month** for infrastructure (everything runs on the laptop).
+
+The only cost is the Claude API — see `COST.md`. Target total spend across
+the entire thesis development: **< $50 USD**.
+
+---
+
+## 11. What this document does NOT cover
+
+- AWS/GCP/Azure deployment — out of scope, see SPECIFICATION.md §1.2
+- Terraform modules — out of scope
+- Multi-cluster, multi-region — out of scope
+- Service mesh — out of scope
+- Production secrets management (use Kubernetes Secrets or a `.env` file)
+- TLS certificates for public deployment — use `mkcert` locally; Let's Encrypt
+  is overkill for a thesis demo
+
+If any of the above is required by your supervisor, treat it as a "future
+work" item, not a v1 deliverable.
