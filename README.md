@@ -58,6 +58,25 @@ Full deploy guide: [`docs/DEPLOY.md`](./docs/DEPLOY.md) (to be written in Phase 
 
 These are conscious cuts to keep the thesis scope defensible. See [`SPECIFICATION.md` §1.2](./SPECIFICATION.md#12-non-goals-explicitly-out-of-scope).
 
+## Research gap addressed by this work
+
+The SRE × LLM literature is dominated by **production-scale, multi-agent frameworks** (e.g. Ant Group's OpenDerisk, [arXiv:2510.13561](https://arxiv.org/abs/2510.13561)) and **human-agent collaborative SRE teams** (Madduri, 2026, *Power System Protection and Control*, 54(1):414–423). Both report strong industrial numbers — 67% autonomous resolution, 80% MTTR reduction, 60,000 runs/day, 3,000 daily users — but they share gaps that this thesis explicitly targets:
+
+| # | Gap in the prior literature | What this project does differently |
+|---|---|---|
+| **1** | **No static code analysis integrated with LLM RCA.** OpenDerisk's *Code-Agent* reads runtime artefacts; the Agentic SRE paper is log-only. Neither builds a `go/parser` + `go/ast` function index, call graph, or stack-trace-aware linker. | This project's **core contribution** is the `internal/codebase` package (spec §4.3): a real AST + intra-package call graph + scored candidate-function linker that gives the LLM a *curated, top-K function context* for every incident. The linker is explainable — every `ScoredFunction` carries the `Reasons` for its score (name match, doc match, stack-trace frame match, callee proximity). |
+| **2** | **No reproducible, labeled evaluation harness.** Both papers report production numbers from private datasets (AntRCA: 1,743 cases, 6,000+ real-world cases). | Spec §9 mandates `tests/eval/cases.json` with labeled `ground_truth` (function, fix_summary) and quantitative targets — **top-1 ≥ 0.7, top-3 ≥ 0.9, fix exactness ≥ 0.5, p95 < 30 s** — runnable on a laptop with `make eval`. The eval dataset is **committed**, so reviewers can rerun and reproduce. |
+| **3** | **No function-level *code fix* as a deliverable.** OpenDerisk produces "Handling Opinions" and "Smart Testing"; the Agentic SRE paper stops at "Resolution Verified." Neither generates a concrete replacement function or unified diff. | Spec §4.4 + §5.3 generate a `Fix` with `Replacement` (full new function body) and `UnifiedDiff`, then **verify it compiles and passes the seeded test** — a *fix-exactness* metric no other SRE-LLM paper reports. |
+| **4** | **No hybrid deterministic + LLM pipeline.** Both frameworks rely on the LLM end-to-end. OpenDerisk explicitly admits an **accuracy-latency trade-off** (V3 framework: 22 min vs 6 min for V1 baseline). | Spec §4.4 `patterns.go` runs a **deterministic regex signature matcher first**. On a high-confidence pattern hit (`> 0.9`), the LLM call is shortened or skipped, and the matched hypothesis is **boosted to rank 1** by `ranker.go`. This is both a *latency lever* and an *explainability anchor* for the LLM. |
+| **5** | **No structured, auditable evidence trail per hypothesis.** OpenDerisk has a "Reasoning Flow / Evidence Chain" UI; the Agentic SRE paper is implicit. Neither ties every claim to a specific log entry ID, code ref, and score. | Each `Hypothesis` (spec §4.4) carries a typed `[]Evidence` array (`log` / `code` / `pattern`), and each `ScoredFunction` carries the `Reasons` it was chosen. Every rank decision is reconstructable. |
+| **6** | **Closed / vendor-tied ecosystems.** OpenDerisk is Python + Ant Group's private observability stack; the Agentic SRE paper is a vendor framework. | This project is **Go 1.22+**, single binary, MIT-licensed, runs end-to-end on a laptop with `docker compose` (spec §8). No external runtime services. |
+| **7** | **No cost/energy reporting.** Neither paper discusses token cost or carbon. | Spec §10 + `COST.md` enforce a hard ceiling of **< $50 USD total Claude API spend** for the entire thesis. A useful counter-example to industrial-scale SRE agents. |
+| **8** | **Scope is not thesis-defensible.** 13 specialists, 50+ agents, 3,000 daily users, 60,000 runs/day are not reproducible by an external examiner. | The v2 spec explicitly **cuts** Terraform, AWS/cloud, vector DBs, multi-cluster, service mesh, ELK, and auto-remediation (spec §1.2). A reviewer can `git clone` → `docker compose up` → `make eval` in under 10 minutes (DEVOPS §8). |
+
+**Positioning statement.** Where OpenDerisk optimizes for *industrial scale* and the Agentic SRE paper optimizes for *operational collaboration*, this project optimizes for **explainability, reproducibility, and the closed loop from runtime error → function in the code → proposed fix → test-validated fix** in a single, defensible artifact.
+
+See `PROPOSAL_ENHANCED.md` §4.5 (Gap Analysis) for the formal literature review framing.
+
 ## Architecture
 
 See [`SPECIFICATION.md` §2](./SPECIFICATION.md#2-high-level-architecture) and [`sre-ai-agent/ARCHITECTURE.md`](./sre-ai-agent/ARCHITECTURE.md) for the full diagram and component map.
