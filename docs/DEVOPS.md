@@ -1,6 +1,6 @@
 # SRE AI Agent - DevOps Handbook (v2)
 
-> **Source of truth:** [`SPECIFICATION.md`](../SPECIFICATION.md), §9.
+> **Source of truth:** [`SPECIFICATION.md`](./SPECIFICATION.md), §9.
 > This document covers CI/CD, security hygiene, and operational runbooks.
 > Cloud-specific material (Terraform, Istio, AWS Secrets Manager, etc.) is
 > explicitly removed. If anything here contradicts the spec, the spec wins.

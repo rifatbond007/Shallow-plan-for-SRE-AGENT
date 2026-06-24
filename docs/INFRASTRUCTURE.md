@@ -1,6 +1,6 @@
 # SRE AI Agent - Local Infrastructure (v2)
 
-> **Source of truth:** [`SPECIFICATION.md`](../SPECIFICATION.md), §8.
+> **Source of truth:** [`SPECIFICATION.md`](./SPECIFICATION.md), §8.
 > This document covers the **local** deployment story only.
 > Cloud (AWS/GCP/Azure) is explicitly out of scope — see SPECIFICATION.md §1.2.
 > If anything here contradicts the spec, the spec wins.

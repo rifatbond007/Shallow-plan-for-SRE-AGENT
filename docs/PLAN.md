@@ -1,6 +1,6 @@
 # SRE AI Agent - Implementation Plan (v2)
 
-> **Source of truth:** [`SPECIFICATION.md`](../SPECIFICATION.md), §7.
+> **Source of truth:** [`SPECIFICATION.md`](./SPECIFICATION.md), §7.
 > This document is the week-by-week breakdown.
 > If anything here contradicts the spec, the spec wins.
 

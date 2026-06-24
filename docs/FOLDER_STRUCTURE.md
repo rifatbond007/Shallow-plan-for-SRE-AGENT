@@ -1,6 +1,6 @@
 # SRE AI Agent - Folder Structure (v2)
 
-> **Source of truth:** [`SPECIFICATION.md`](../SPECIFICATION.md), §3.
+> **Source of truth:** [`SPECIFICATION.md`](./SPECIFICATION.md), §3.
 > This file is a copy of §3 with annotations for what each path holds.
 > If anything here contradicts the spec, the spec wins.
 
@@ -9,28 +9,34 @@
 ## 1. Top-level layout
 
 ```
-sre-ai-agent/
-├── cmd/                  # entrypoints (one binary: agent)
-├── internal/             # private application code
-├── pkg/                  # small reusable packages
-├── prompts/              # LLM prompt templates (text files, shipped)
-├── configs/              # docker-compose, k8s manifests, helm chart
-├── tests/                # unit / integration / evaluation data
-├── scripts/              # dev/demo helpers
-├── docs/                 # API.md, EVAL.md, DEPLOY.md
-├── go.mod
-├── go.sum
-├── Makefile
-├── Dockerfile
-├── .env.example
-├── ARCHITECTURE.md       # mirrors SPECIFICATION.md §2
-├── FOLDER_STRUCTURE.md   # this file
-├── PLAN.md               # mirrors SPECIFICATION.md §7
-├── INFRASTRUCTURE.md     # mirrors SPECIFICATION.md §8 (local only)
-├── DEVOPS.md             # mirrors SPECIFICATION.md §9 (trimmed)
-├── COST.md               # mirrors SPECIFICATION.md §10
-├── SPECIFICATION.md      # ← single source of truth
-└── README.md
+repo-root/
+├── README.md
+├── docs/
+│   ├── AGENTS.md
+│   ├── SPECIFICATION.md           # ← single source of truth
+│   ├── ARCHITECTURE.md            # mirrors SPECIFICATION.md §2
+│   ├── FOLDER_STRUCTURE.md        # this file
+│   ├── PLAN.md                    # mirrors SPECIFICATION.md §7
+│   ├── INFRASTRUCTURE.md          # mirrors SPECIFICATION.md §8 (local only)
+│   ├── DEVOPS.md                  # mirrors SPECIFICATION.md §9 (trimmed)
+│   ├── COST.md                    # mirrors SPECIFICATION.md §10
+│   ├── API.md                     # Phase 3
+│   ├── EVAL.md                    # Phase 3
+│   └── DEPLOY.md                  # Phase 3
+├── papers/
+└── sre-ai-agent/
+    ├── cmd/                  # entrypoints (one binary: agent)
+    ├── internal/             # private application code
+    ├── pkg/                  # small reusable packages
+    ├── prompts/              # LLM prompt templates (text files, shipped)
+    ├── configs/              # docker-compose, k8s manifests, helm chart
+    ├── tests/                # unit / integration / evaluation data
+    ├── scripts/              # dev/demo helpers
+    ├── go.mod
+    ├── go.sum
+    ├── Makefile
+    ├── Dockerfile
+    └── .env.example
 ```
 
 ---

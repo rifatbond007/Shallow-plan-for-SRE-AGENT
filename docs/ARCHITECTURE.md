@@ -1,6 +1,6 @@
 # SRE AI Agent - Architecture (v2)
 
-> **Source of truth:** [`SPECIFICATION.md`](../SPECIFICATION.md), §2.
+> **Source of truth:** [`SPECIFICATION.md`](./SPECIFICATION.md), §2.
 > This document mirrors the architecture section of the spec with diagrams only.
 > If anything here contradicts the spec, the spec wins.
 

@@ -9,7 +9,7 @@
 
 ## 0. Why this version exists
 
-The previous plan (`PROPOSAL_ENHANCED.md`, `ARCHITECTURE.md`, `PLAN.md`, `INFRASTRUCTURE.md`, `DEVOPS.md`) had **scope drift**: it tried to ship Terraform, multi-cloud, ELK, vector DBs, Helm chart repositories, chaos engineering, and production-grade AWS infrastructure — all inside a 10-week university thesis. This is unrealistic and obscures the actual research contribution.
+The previous plan (the academic proposal, plus `ARCHITECTURE.md`, `PLAN.md`, `INFRASTRUCTURE.md`, `DEVOPS.md`) had **scope drift**: it tried to ship Terraform, multi-cloud, ELK, vector DBs, Helm chart repositories, chaos engineering, and production-grade AWS infrastructure — all inside a 10-week university thesis. This is unrealistic and obscures the actual research contribution.
 
 This specification:
 
@@ -157,6 +157,12 @@ For long-running analyses, the same flow runs over a WebSocket and emits progres
 
 ## 3. Repository layout
 
+**Go module path** (pinned; all imports derive from this):
+
+```
+github.com/rifatbond007/sre-ai-agent
+```
+
 ```
 sre-ai-agent/
 ├── cmd/
@@ -243,6 +249,14 @@ sre-ai-agent/
 │   ├── gen_sample_logs.sh
 │   └── seed_bugs.sh                # writes known-bad Go files
 ├── docs/
+│   ├── AGENTS.md
+│   ├── SPECIFICATION.md            # this file
+│   ├── ARCHITECTURE.md             # diagram-only, mirrors §2
+│   ├── FOLDER_STRUCTURE.md         # mirrors §3
+│   ├── PLAN.md                     # mirrors §7
+│   ├── INFRASTRUCTURE.md           # mirrors §8 (local only)
+│   ├── DEVOPS.md                   # mirrors §9 (trimmed)
+│   ├── COST.md                     # mirrors §10
 │   ├── API.md
 │   ├── EVAL.md
 │   └── DEPLOY.md
@@ -251,13 +265,6 @@ sre-ai-agent/
 ├── Makefile
 ├── Dockerfile
 ├── .env.example
-├── ARCHITECTURE.md                 # diagram-only, mirrors §2
-├── FOLDER_STRUCTURE.md             # mirrors §3
-├── PLAN.md                         # mirrors §7
-├── INFRASTRUCTURE.md               # mirrors §8 (local only)
-├── DEVOPS.md                       # mirrors §9 (trimmed)
-├── COST.md                         # mirrors §10
-├── SPECIFICATION.md                # this file
 └── README.md
 ```
 
@@ -289,6 +296,7 @@ sre-ai-agent/
 | `CACHE_MAX_ENTRIES` | int | `512` | |
 | `RATE_LIMIT_RPS` | float | `5` | per IP |
 | `RATE_LIMIT_BURST` | int | `10` | |
+| `API_KEY` | string | _(unset)_ | optional static `X-API-Key` auth on `/api/v1/analyze`; if unset, endpoint is open and a warning is logged at startup (see DEVOPS §5.1) |
 
 **Public type:**
 
@@ -556,6 +564,14 @@ type AnalysisResult struct {
 - `engine.go` — orchestrator. Public:
 
   ```go
+  type ProgressEvent struct {
+      Type  string `json:"type"`  // "progress" | "incident" | "hypothesis" | "fix" | "done" | "error"
+      Stage string `json:"stage,omitempty"`
+      Pct   int    `json:"pct,omitempty"`
+      Data  any    `json:"data,omitempty"`
+      Error string `json:"error,omitempty"`
+  }
+
   type Engine interface {
       Analyze(ctx context.Context, req AnalyzeRequest) (*AnalysisResult, error)
       AnalyzeStream(ctx context.Context, req AnalyzeRequest, sink func(ProgressEvent) error) (*AnalysisResult, error)
@@ -570,6 +586,20 @@ type AnalysisResult struct {
 - `patterns.go` — deterministic signature matcher. Ship a small built-in library:
 
   ```go
+  type Pattern struct {
+      ID       string
+      Severity Severity
+      Regex    string
+      Label    string
+  }
+
+  type PatternMatch struct {
+      PatternID string
+      Label     string
+      Severity  Severity
+      Lines     []string // matching log lines
+  }
+
   var DefaultPatterns = []Pattern{
       {ID: "nginx_502",  Severity: "ERROR", Regex: `connect\(\) failed.*upstream`, Label: "Upstream connection failure"},
       {ID: "nginx_504",  Severity: "ERROR", Regex: `upstream timed out`,          Label: "Upstream timeout"},
@@ -1004,12 +1034,14 @@ With local deployment, infra cost ≈ **$0/month**. The only cost is the Claude 
 
 | Phase | Cases / run | Input tokens / case | Output tokens / case | Cost / case (Sonnet) | Cost / full eval |
 |-------|-------------|---------------------|----------------------|----------------------|-------------------|
-| Phase 1 eval (10 cases) | 10 | ~25k | ~3k | ~$0.12 | ~$1.20 |
-| Phase 2 eval (20 cases) | 20 | ~25k | ~5k | ~$0.16 | ~$3.20 |
-| Demo (live) | 5 | ~25k | ~3k | ~$0.12 | ~$0.60 |
+| Phase 1 eval (10 cases) | 10 | ~20k | ~1.5k | ~$0.08 | ~$0.80 |
+| Phase 2 eval (20 cases) | 20 | ~20k | ~3.5k | ~$0.11 | ~$2.20 |
+| Demo (live) | 5 | ~20k | ~3.5k | ~$0.11 | ~$0.55 |
 | Buffer for iteration | — | — | — | — | **~$10 total** |
 
 > Pricing based on Claude Sonnet: $3/M input, $15/M output. Subject to change.
+> Line-item assumptions (`~20k` truncated context from spec §4.4 `context.go`)
+> are reconciled with [`COST.md`](./COST.md) §4.
 
 Optimization levers (only if costs surprise us):
 - Truncate `function.body` aggressively when not in the top-K code-linker candidates.
@@ -1028,8 +1060,12 @@ This is the cross-reference. **If you change SPECIFICATION.md, you must update t
 | §3 Repository layout | `FOLDER_STRUCTURE.md` |
 | §7 Roadmap | `PLAN.md` |
 | §8 Local deployment | `INFRASTRUCTURE.md` |
-| §4.5, §4.6, §4.7 API + storage | `DEVOPS.md` (CI/CD + monitoring only) |
+| §9 Evaluation + CI/CD + runbooks + observability | `DEVOPS.md` |
 | §10 Cost | `COST.md` |
+
+Note: `DEVOPS.md` covers CI/CD, security, runbooks, and Prometheus/Grafana
+dashboards. Component-level API, storage, and metrics specs live in this file
+(§4.5, §4.6, §4.7) and are not duplicated elsewhere.
 
 ---
 

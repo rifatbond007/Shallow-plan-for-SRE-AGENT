@@ -1,6 +1,6 @@
 # SRE AI Agent - Cost Breakdown (v2)
 
-> **Source of truth:** [`SPECIFICATION.md`](../SPECIFICATION.md), §10.
+> **Source of truth:** [`SPECIFICATION.md`](./SPECIFICATION.md), §10.
 > This is a thesis project that runs on a laptop. There is **no
 > infrastructure bill** — only the Claude API bill, which is small.
 
@@ -32,13 +32,14 @@ The only variable cost is the Claude API. Below is a realistic estimate.
 
 ---
 
-## 3. Claude API pricing (Sonnet 4.6, as of 2026-05)
+## 3. Claude API pricing (Sonnet 4, as of 2026-05)
 
 | Direction | Price per 1M tokens |
 |-----------|---------------------|
 | Input | $3.00 |
 | Output | $15.00 |
 
+> Default model is **`claude-sonnet-4-20250514`** (spec §4.1; `.env.example`).
 > Confirm current pricing at https://www.anthropic.com/pricing before
 > submitting. If Anthropic has changed prices, update this table.
 
@@ -60,7 +61,8 @@ A typical `POST /api/v1/analyze` request sends:
 
 - System prompt: ~300 tokens
 - Incident block (≤ 20 log lines + 3 candidate functions, bodies
-  truncated): ~20,000 tokens input
+  truncated to fit the ~30k token budget from spec §4.4 `context.go`):
+  ~20,000 tokens input
 - Hypothesis response: ~1,500 tokens output
 - Fix response (if requested): ~2,000 tokens output
 
@@ -75,6 +77,10 @@ A hypothesis-only call (Phase 1):
 - **Input:**  ~20,000 tokens → $0.06
 - **Output:** ~1,500 tokens  → $0.02
 - **Per case:** **~$0.08**
+
+> These numbers match [`SPECIFICATION.md` §10](./SPECIFICATION.md#10-cost-reality-check-local-first).
+> Spec §10 rounds the full-case cost to **~$0.10** to absorb small variance
+> across prompt templates; the line-item math above is the working estimate.
 
 ---
 

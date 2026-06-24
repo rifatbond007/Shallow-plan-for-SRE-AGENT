@@ -2,7 +2,7 @@
 
 An AI-powered Site Reliability Engineering agent that, given operational logs and a Go codebase, **detects incidents → ranks root-cause hypotheses → proposes code-level fixes**.
 
-> **Read [`SPECIFICATION.md`](./SPECIFICATION.md) first.** It is the single source of truth for this project. Every other document mirrors a section of it.
+> **Read [`SPECIFICATION.md`](./docs/SPECIFICATION.md) first.** It is the single source of truth for this project. Every other document mirrors a section of it.
 
 ## What this project does (one sentence)
 
@@ -35,14 +35,13 @@ Full deploy guide: [`docs/DEPLOY.md`](./docs/DEPLOY.md) (to be written in Phase 
 
 | Document | Purpose |
 |----------|---------|
-| **[`SPECIFICATION.md`](./SPECIFICATION.md)** | **Single source of truth.** Scope, architecture, components, API, prompts, eval, deployment, acceptance criteria. |
-| [`sre-ai-agent/ARCHITECTURE.md`](./sre-ai-agent/ARCHITECTURE.md) | Diagrams only. Mirrors spec §2. |
-| [`sre-ai-agent/FOLDER_STRUCTURE.md`](./sre-ai-agent/FOLDER_STRUCTURE.md) | Repo layout. Mirrors spec §3. |
-| [`sre-ai-agent/PLAN.md`](./sre-ai-agent/PLAN.md) | Week-by-week implementation plan. Mirrors spec §7. |
-| [`sre-ai-agent/INFRASTRUCTURE.md`](./sre-ai-agent/INFRASTRUCTURE.md) | Local deployment (Docker + Minikube/Kind + Helm). Mirrors spec §8. |
-| [`sre-ai-agent/DEVOPS.md`](./sre-ai-agent/DEVOPS.md) | CI/CD, security, runbooks. Mirrors spec §9. |
-| [`sre-ai-agent/COST.md`](./sre-ai-agent/COST.md) | Cost reality check. Mirrors spec §10. |
-| [`PROPOSAL_ENHANCED.md`](./PROPOSAL_ENHANCED.md) | Academic proposal (for the university submission). |
+| **[`SPECIFICATION.md`](./docs/SPECIFICATION.md)** | **Single source of truth.** Scope, architecture, components, API, prompts, eval, deployment, acceptance criteria. |
+| [`sre-ai-agent/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Diagrams only. Mirrors spec §2. |
+| [`sre-ai-agent/FOLDER_STRUCTURE.md`](./docs/FOLDER_STRUCTURE.md) | Repo layout. Mirrors spec §3. |
+| [`sre-ai-agent/PLAN.md`](./docs/PLAN.md) | Week-by-week implementation plan. Mirrors spec §7. |
+| [`sre-ai-agent/INFRASTRUCTURE.md`](./docs/INFRASTRUCTURE.md) | Local deployment (Docker + Minikube/Kind + Helm). Mirrors spec §8. |
+| [`sre-ai-agent/DEVOPS.md`](./docs/DEVOPS.md) | CI/CD, security, runbooks. Mirrors spec §9. |
+| [`sre-ai-agent/COST.md`](./docs/COST.md) | Cost reality check. Mirrors spec §10. |
 | `docs/API.md` | REST + WebSocket contract. *(Phase 3)* |
 | `docs/EVAL.md` | How to run and read the evaluation. *(Phase 3)* |
 | `docs/DEPLOY.md` | Step-by-step deployment walkthrough. *(Phase 3)* |
@@ -56,7 +55,7 @@ Full deploy guide: [`docs/DEPLOY.md`](./docs/DEPLOY.md) (to be written in Phase 
 - Not a service mesh demo
 - Not an auto-remediation agent (it **suggests** fixes; it does not apply them)
 
-These are conscious cuts to keep the thesis scope defensible. See [`SPECIFICATION.md` §1.2](./SPECIFICATION.md#12-non-goals-explicitly-out-of-scope).
+These are conscious cuts to keep the thesis scope defensible. See [`SPECIFICATION.md` §1.2](./docs/SPECIFICATION.md#12-non-goals-explicitly-out-of-scope).
 
 ## Research gap addressed by this work
 
@@ -75,11 +74,9 @@ The SRE × LLM literature is dominated by **production-scale, multi-agent framew
 
 **Positioning statement.** Where OpenDerisk optimizes for *industrial scale* and the Agentic SRE paper optimizes for *operational collaboration*, this project optimizes for **explainability, reproducibility, and the closed loop from runtime error → function in the code → proposed fix → test-validated fix** in a single, defensible artifact.
 
-See `PROPOSAL_ENHANCED.md` §4.5 (Gap Analysis) for the formal literature review framing.
-
 ## Architecture
 
-See [`SPECIFICATION.md` §2](./SPECIFICATION.md#2-high-level-architecture) and [`sre-ai-agent/ARCHITECTURE.md`](./sre-ai-agent/ARCHITECTURE.md) for the full diagram and component map.
+See [`SPECIFICATION.md` §2](./docs/SPECIFICATION.md#2-high-level-architecture) and [`sre-ai-agent/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full diagram and component map.
 
 In short: **Ingest → Codebase → Analysis → API**, with Claude as the only external dependency.
 
@@ -99,7 +96,7 @@ In short: **Ingest → Codebase → Analysis → API**, with Claude as the only 
 | Package manager | Helm | 3.14+ | One chart, multiple values |
 | CI | GitHub Actions | — | Free for the thesis |
 
-**Explicitly not used** (kept out of scope): Terraform, Istio, vector DBs, ELK/Loki/Tempo, PagerDuty, cloud-managed K8s. See [`SPECIFICATION.md` §1.2](./SPECIFICATION.md#12-non-goals-explicitly-out-of-scope).
+**Explicitly not used** (kept out of scope): Terraform, Istio, vector DBs, ELK/Loki/Tempo, PagerDuty, cloud-managed K8s. See [`SPECIFICATION.md` §1.2](./docs/SPECIFICATION.md#12-non-goals-explicitly-out-of-scope).
 
 ## API surface (summary)
 
@@ -111,7 +108,7 @@ In short: **Ingest → Codebase → Analysis → API**, with Claude as the only 
 | `GET`  | `/api/v1/healthz`, `/api/v1/readyz` | Liveness / readiness |
 | `GET`  | `/metrics` | Prometheus scrape endpoint |
 
-Full contract: [`SPECIFICATION.md` §4.5, §6](./SPECIFICATION.md) and (later) `docs/API.md`.
+Full contract: [`SPECIFICATION.md` §4.5, §6](./docs/SPECIFICATION.md) and (later) `docs/API.md`.
 
 ## Quick start (5 minutes)
 
@@ -151,25 +148,12 @@ kubectl -n sre-agent port-forward svc/sre-agent 8080:8080
 and writes `sre-ai-agent/tests/eval/report.md`. Target: ≥ 0.7 top-1 accuracy,
 ≥ 0.9 top-3 accuracy, ≥ 0.5 fix exactness.
 
-Full methodology: [`SPECIFICATION.md` §9](./SPECIFICATION.md#9-evaluation-methodology-a-thesis-is-judged-on-this).
+Full methodology: [`SPECIFICATION.md` §9](./docs/SPECIFICATION.md#9-evaluation-methodology-a-thesis-is-judged-on-this).
 
 ## Cost
 
 **$0/month** infrastructure. **~$10–50 total** Claude API across the whole
-thesis. See [`COST.md`](./sre-ai-agent/COST.md).
-
-## Documentation map
-
-| Document | Purpose |
-|----------|---------|
-| **[`SPECIFICATION.md`](./SPECIFICATION.md)** | **Single source of truth.** |
-| [`sre-ai-agent/ARCHITECTURE.md`](./sre-ai-agent/ARCHITECTURE.md) | Diagrams (mirror of spec §2). |
-| [`sre-ai-agent/FOLDER_STRUCTURE.md`](./sre-ai-agent/FOLDER_STRUCTURE.md) | Repo layout (mirror of spec §3). |
-| [`sre-ai-agent/PLAN.md`](./sre-ai-agent/PLAN.md) | Week-by-week plan (mirror of spec §7). |
-| [`sre-ai-agent/INFRASTRUCTURE.md`](./sre-ai-agent/INFRASTRUCTURE.md) | Local deploy (mirror of spec §8). |
-| [`sre-ai-agent/DEVOPS.md`](./sre-ai-agent/DEVOPS.md) | CI/CD + runbooks (mirror of spec §9). |
-| [`sre-ai-agent/COST.md`](./sre-ai-agent/COST.md) | Cost (mirror of spec §10). |
-| [`PROPOSAL_ENHANCED.md`](./PROPOSAL_ENHANCED.md) | Academic proposal (for the university submission). |
+thesis. See [`COST.md`](./docs/COST.md).
 
 ## License
 
