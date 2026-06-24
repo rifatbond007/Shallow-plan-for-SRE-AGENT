@@ -27,6 +27,7 @@ func NewRouter(engine analysis.Engine, store *storage.Store, log *zap.Logger, ap
 	r.GET("/api/v1/healthz", h.healthz)
 	r.GET("/api/v1/readyz", h.readyz)
 	r.POST("/api/v1/analyze", h.analyze)
+	r.GET("/api/v1/analyze/ws", h.analyzeStreamWS)
 	r.GET("/api/v1/hypotheses/:id", h.getHypothesis)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 

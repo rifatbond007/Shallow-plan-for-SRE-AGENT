@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
 	"github.com/rifatbond007/sre-ai-agent/internal/api"
@@ -20,6 +21,8 @@ import (
 )
 
 func main() {
+	_ = godotenv.Load()
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("config: %v", err)
@@ -30,13 +33,25 @@ func main() {
 		log.Fatalf("logger: %v", err)
 	}
 
-	claude := analysis.NewClaudeClient(
-		cfg.Anthropic.APIKey,
-		cfg.Anthropic.Model,
-		cfg.Anthropic.Timeout,
-	)
+	var llm analysis.LLMClient
+	switch cfg.LLMProvider {
+	case "gemini":
+		llm = analysis.NewGeminiClient(
+			cfg.Gemini.APIKey,
+			cfg.Gemini.Model,
+			cfg.Gemini.Timeout,
+		)
+		zapLog.Info("using Gemini LLM provider", zap.String("model", cfg.Gemini.Model))
+	default:
+		llm = analysis.NewClaudeClient(
+			cfg.Anthropic.APIKey,
+			cfg.Anthropic.Model,
+			cfg.Anthropic.Timeout,
+		)
+		zapLog.Info("using Claude LLM provider", zap.String("model", cfg.Anthropic.Model))
+	}
 
-	engine := analysis.NewEngine(claude, cfg.MaxLogBytes)
+	engine := analysis.NewEngine(llm, cfg.MaxLogBytes)
 
 	store := storage.NewStore(cfg.CacheMaxEntries, cfg.CacheTTL)
 

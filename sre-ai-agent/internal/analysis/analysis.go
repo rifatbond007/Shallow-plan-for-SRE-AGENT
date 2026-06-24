@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/rifatbond007/sre-ai-agent/internal/codebase"
 	"github.com/rifatbond007/sre-ai-agent/internal/ingest"
 )
 
@@ -65,6 +66,11 @@ type AnalyzeRequest struct {
 	Logs         string
 	CodebasePath string
 	TopK         int
+}
+
+type LLMClient interface {
+	AnalyzeIncident(ctx context.Context, inc ingest.Incident, candidates []codebase.ScoredFunction) ([]Hypothesis, error)
+	GenerateFix(ctx context.Context, hypothesis Hypothesis, candidates []codebase.ScoredFunction) (Fix, error)
 }
 
 type Engine interface {

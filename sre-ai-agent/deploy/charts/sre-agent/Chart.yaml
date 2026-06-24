@@ -1,0 +1,12 @@
+apiVersion: v2
+name: sre-agent
+description: SRE AI Agent - automated root-cause analysis and fix generation
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+keywords:
+  - sre
+  - ai
+  - incident-analysis
+  - root-cause
+home: https://github.com/rifatbond007/sre-ai-agent

@@ -10,7 +10,9 @@ import (
 type Config struct {
 	Port            int             `env:"SRE_AGENT_PORT" envDefault:"8080"`
 	LogLevel        string          `env:"SRE_AGENT_LOG_LEVEL" envDefault:"info"`
+	LLMProvider     string          `env:"SRE_AGENT_LLM_PROVIDER" envDefault:"claude"`
 	Anthropic       AnthropicConfig `envPrefix:"SRE_AGENT_ANTHROPIC_"`
+	Gemini          GeminiConfig    `envPrefix:"SRE_AGENT_GEMINI_"`
 	CodebasePath    string          `env:"SRE_AGENT_CODEBASE_PATH" envDefault:"/codebase"`
 	CodebaseCache   string          `env:"SRE_AGENT_CODEBASE_CACHE_DIR" envDefault:"/tmp/sre-agent/cache"`
 	MaxLogBytes     int             `env:"SRE_AGENT_MAX_LOG_BYTES" envDefault:"5000000"`
@@ -27,6 +29,13 @@ type Config struct {
 type AnthropicConfig struct {
 	APIKey    string        `env:"API_KEY" envDefault:""`
 	Model     string        `env:"MODEL" envDefault:"claude-sonnet-4-20250514"`
+	MaxTokens int           `env:"MAX_TOKENS" envDefault:"2048"`
+	Timeout   time.Duration `env:"TIMEOUT" envDefault:"30s"`
+}
+
+type GeminiConfig struct {
+	APIKey    string        `env:"API_KEY" envDefault:""`
+	Model     string        `env:"MODEL" envDefault:"gemini-2.0-flash"`
 	MaxTokens int           `env:"MAX_TOKENS" envDefault:"2048"`
 	Timeout   time.Duration `env:"TIMEOUT" envDefault:"30s"`
 }

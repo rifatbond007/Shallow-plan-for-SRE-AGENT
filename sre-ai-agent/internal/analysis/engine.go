@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -15,17 +16,17 @@ type engine struct {
 	multiParser  *ingest.MultiParser
 	grouper      ingest.Grouper
 	patternMatch *PatternMatcher
-	claude       *ClaudeClient
+	llm          LLMClient
 	ranker       *Ranker
 	maxLogBytes  int
 }
 
-func NewEngine(claude *ClaudeClient, maxLogBytes int) Engine {
+func NewEngine(llm LLMClient, maxLogBytes int) Engine {
 	return &engine{
 		multiParser:  ingest.NewMultiParser(),
 		grouper:      ingest.DefaultGrouper(),
 		patternMatch: NewPatternMatcher(),
-		claude:       claude,
+		llm:          llm,
 		ranker:       NewRanker(),
 		maxLogBytes:  maxLogBytes,
 	}
@@ -61,14 +62,15 @@ func (e *engine) Analyze(ctx context.Context, req AnalyzeRequest) (*AnalysisResu
 
 		candidates := linker.CandidateFunctions(inc, req.TopK)
 
-		hypotheses, err := e.claude.AnalyzeIncident(ctx, inc, candidates)
+		hypotheses, err := e.llm.AnalyzeIncident(ctx, inc, candidates)
 		if err != nil {
+			log.Printf("LLM AnalyzeIncident error: %v", err)
 			continue
 		}
 
 		e.ranker.Rank(hypotheses, pattern)
 
-		fix, err := e.claude.GenerateFix(ctx, hypotheses[0], candidates)
+		fix, err := e.llm.GenerateFix(ctx, hypotheses[0], candidates)
 		if err == nil {
 			fix.HypothesisID = hypotheses[0].ID
 			allFixes = append(allFixes, fix)
@@ -133,8 +135,9 @@ func (e *engine) AnalyzeStream(ctx context.Context, req AnalyzeRequest, sink fun
 		pattern := e.patternMatch.Match(inc)
 		candidates := linker.CandidateFunctions(inc, req.TopK)
 
-		hypotheses, err := e.claude.AnalyzeIncident(ctx, inc, candidates)
+		hypotheses, err := e.llm.AnalyzeIncident(ctx, inc, candidates)
 		if err != nil {
+			log.Printf("LLM AnalyzeIncident error: %v", err)
 			continue
 		}
 
@@ -144,7 +147,7 @@ func (e *engine) AnalyzeStream(ctx context.Context, req AnalyzeRequest, sink fun
 			sink(ProgressEvent{Type: "hypothesis", Data: h})
 		}
 
-		fix, err := e.claude.GenerateFix(ctx, hypotheses[0], candidates)
+		fix, err := e.llm.GenerateFix(ctx, hypotheses[0], candidates)
 		if err == nil {
 			fix.HypothesisID = hypotheses[0].ID
 			allFixes = append(allFixes, fix)

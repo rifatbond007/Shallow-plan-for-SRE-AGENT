@@ -1,0 +1,90 @@
+# Default values for sre-agent.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: sre-agent
+  tag: latest
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: sre-agent.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Application configuration — maps to SRE_AGENT_* env vars.
+config:
+  port: 8080
+  logLevel: info
+  llmProvider: gemini
+  maxLogBytes: 5000000
+  incidentWindow: 5m
+  incidentMinSize: 3
+  hypothesisTopK: 3
+  cacheTTL: 1h
+  cacheMaxEntries: 512
+  rateLimitRPS: 5
+  rateLimitBurst: 10
+
+# LLM API keys. Set via --set or a .env secret.
+# For production, use ExternalSecret or Vault instead of plain values.
+secrets:
+  anthropicApiKey: ""
+  geminiApiKey: ""
+
+# Codebase to analyze — mounted as a volume.
+codebase:
+  enabled: true
+  existingClaim: ""
+  hostPath: ""
