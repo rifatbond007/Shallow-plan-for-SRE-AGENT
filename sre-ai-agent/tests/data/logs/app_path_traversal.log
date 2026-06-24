@@ -1,0 +1,6 @@
+{"ts":"2026-06-23T18:00:00Z","level":"error","msg":"review not found","endpoint":"/review","product_id":"../../../etc/passwd","trace":"pt001"}
+{"ts":"2026-06-23T18:00:01Z","level":"error","msg":"open /data/reviews/../../../etc/passwd.json: no such file or directory","endpoint":"/review","trace":"pt001"}
+{"ts":"2026-06-23T18:01:00Z","level":"error","msg":"review not found","endpoint":"/review","product_id":"..%2F..%2F..%2Fetc%2Fshadow","trace":"pt002"}
+{"ts":"2026-06-23T18:01:01Z","level":"error","msg":"open /data/reviews/../../../etc/shadow.json: no such file or directory","endpoint":"/review","trace":"pt002"}
+{"ts":"2026-06-23T18:02:00Z","level":"error","msg":"review not found","endpoint":"/review","product_id":"..%5C..%5C..%5Cwindows%5Csystem32","trace":"pt003"}
+{"ts":"2026-06-23T18:02:01Z","level":"error","msg":"open /data/reviews/../../../windows/system32.json: no such file or directory","endpoint":"/review","trace":"pt003"}

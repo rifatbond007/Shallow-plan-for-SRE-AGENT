@@ -1,0 +1,4 @@
+{"ts":"2026-06-23T20:00:00Z","level":"warn","msg":"search returned fewer results than expected","endpoint":"/search","q":"electronics","expected":50,"got":12,"trace":"data001"}
+{"ts":"2026-06-23T20:00:01Z","level":"warn","msg":"incomplete result set detected","endpoint":"/search","q":"electronics","trace":"data001"}
+{"ts":"2026-06-23T20:01:00Z","level":"warn","msg":"silent data loss on search query","endpoint":"/search","q":"books","trace":"data002"}
+{"ts":"2026-06-23T20:01:01Z","level":"warn","msg":"rows iteration completed without error but results seem incomplete","endpoint":"/search","q":"books","trace":"data002"}

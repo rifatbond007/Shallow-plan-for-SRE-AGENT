@@ -1,0 +1,6 @@
+{"ts":"2026-06-23T21:00:00Z","level":"error","msg":"profile service call failed","endpoint":"/profile","id":"42","trace":"conn001"}
+{"ts":"2026-06-23T21:00:01Z","level":"error","msg":"connection refused to profile-service:9092","endpoint":"/profile","trace":"conn001"}
+{"ts":"2026-06-23T21:01:00Z","level":"error","msg":"profile service call failed","endpoint":"/profile","id":"99","trace":"conn002"}
+{"ts":"2026-06-23T21:01:01Z","level":"error","msg":"connection refused to profile-service:9092","endpoint":"/profile","trace":"conn002"}
+{"ts":"2026-06-23T21:02:00Z","level":"error","msg":"profile service call failed","endpoint":"/profile","id":"77","trace":"conn003"}
+{"ts":"2026-06-23T21:02:01Z","level":"error","msg":"connection refused to profile-service:9092","endpoint":"/profile","trace":"conn003"}

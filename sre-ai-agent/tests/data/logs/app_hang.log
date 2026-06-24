@@ -1,0 +1,6 @@
+{"ts":"2026-06-23T19:00:00Z","level":"error","msg":"notification service timeout after 30s","endpoint":"/notify","trace":"hang001"}
+{"ts":"2026-06-23T19:00:01Z","level":"error","msg":"http.Post: dial tcp 10.0.0.5:9091: i/o timeout","endpoint":"/notify","trace":"hang001"}
+{"ts":"2026-06-23T19:01:00Z","level":"error","msg":"notification send stuck for 60s","endpoint":"/notify","trace":"hang002"}
+{"ts":"2026-06-23T19:01:01Z","level":"error","msg":"http.Post: no response from notification-service","endpoint":"/notify","trace":"hang002"}
+{"ts":"2026-06-23T19:05:00Z","level":"error","msg":"payment service timeout after 30s","endpoint":"/checkout","trace":"hang003"}
+{"ts":"2026-06-23T19:05:01Z","level":"error","msg":"upstream connection timed out","endpoint":"/checkout","trace":"hang003"}

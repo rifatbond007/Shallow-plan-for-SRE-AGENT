@@ -28,5 +28,225 @@
       "function": "main.checkoutHandler",
       "fix_summary": "Handle upstream payment service failure gracefully"
     }
+  },
+  {
+    "id": "case_004",
+    "name": "nil pointer on /user endpoint",
+    "logs_path": "tests/data/logs/app_nil.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.getUserHandler",
+      "fix_summary": "Check fetchUser return for nil before encoding response"
+    }
+  },
+  {
+    "id": "case_005",
+    "name": "fetchUser returns nil on empty id",
+    "logs_path": "tests/data/logs/app_nil.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.fetchUser",
+      "fix_summary": "Return error to caller instead of nil when id is empty"
+    }
+  },
+  {
+    "id": "case_006",
+    "name": "SQL injection via search query",
+    "logs_path": "tests/data/logs/app_sqli.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.searchDB",
+      "fix_summary": "Use parameterized queries instead of fmt.Sprintf to prevent SQL injection"
+    }
+  },
+  {
+    "id": "case_007",
+    "name": "unsanitized search input from handler",
+    "logs_path": "tests/data/logs/app_sqli.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.searchHandler",
+      "fix_summary": "Validate and sanitize search query input before passing to searchDB"
+    }
+  },
+  {
+    "id": "case_008",
+    "name": "incomplete search results rows.Err not checked",
+    "logs_path": "tests/data/logs/app_missing_data.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.searchDB",
+      "fix_summary": "Check rows.Err() after the rows.Next() loop to detect partial reads"
+    }
+  },
+  {
+    "id": "case_009",
+    "name": "DB connection not pooled per request",
+    "logs_path": "tests/data/logs/app_error.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.searchDB",
+      "fix_summary": "Reuse sql.DB connection pool instead of opening a new connection per request"
+    }
+  },
+  {
+    "id": "case_010",
+    "name": "panic crash on health check",
+    "logs_path": "tests/data/logs/app_panic.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.healthHandler",
+      "fix_summary": "Add panic recovery middleware or defer recover to prevent server crash"
+    }
+  },
+  {
+    "id": "case_011",
+    "name": "nil db pointer in health check",
+    "logs_path": "tests/data/logs/app_panic.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.checkDBHealth",
+      "fix_summary": "Check if db is nil before calling Ping to avoid nil pointer dereference"
+    }
+  },
+  {
+    "id": "case_012",
+    "name": "goroutine leak on order processing",
+    "logs_path": "tests/data/logs/app_leak.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.orderHandler",
+      "fix_summary": "Use sync.WaitGroup or worker pool instead of fire-and-forget goroutines"
+    }
+  },
+  {
+    "id": "case_013",
+    "name": "uncontrolled goroutine processing orders",
+    "logs_path": "tests/data/logs/app_leak.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.processOrder",
+      "fix_summary": "Add timeout and cancellation context to prevent goroutines from accumulating"
+    }
+  },
+  {
+    "id": "case_014",
+    "name": "path traversal in review handler",
+    "logs_path": "tests/data/logs/app_path_traversal.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.reviewHandler",
+      "fix_summary": "Sanitize and validate user-supplied product_id to prevent path traversal"
+    }
+  },
+  {
+    "id": "case_015",
+    "name": "connection leak on profile service",
+    "logs_path": "tests/data/logs/app_profile_conn.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.profileHandler",
+      "fix_summary": "Close http.Response.Body after reading to prevent connection leak"
+    }
+  },
+  {
+    "id": "case_016",
+    "name": "unclosed HTTP body in profile handler",
+    "logs_path": "tests/data/logs/app_leak.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.profileHandler",
+      "fix_summary": "Add defer resp.Body.Close() after successful http.Get in profileHandler"
+    }
+  },
+  {
+    "id": "case_017",
+    "name": "notification service timeout no context",
+    "logs_path": "tests/data/logs/app_hang.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.notifyHandler",
+      "fix_summary": "Use http.Client with timeout or context-based cancellation for outgoing HTTP calls"
+    }
+  },
+  {
+    "id": "case_018",
+    "name": "checkout context deadline exceeded",
+    "logs_path": "tests/data/logs/app_error.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.checkoutHandler",
+      "fix_summary": "Add HTTP client timeout and request context to the payment service call"
+    }
+  },
+  {
+    "id": "case_019",
+    "name": "nginx 5xx on /search endpoint",
+    "logs_path": "tests/data/logs/nginx_access.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.searchHandler",
+      "fix_summary": "Use parameterized queries and validate input to prevent SQL errors"
+    }
+  },
+  {
+    "id": "case_020",
+    "name": "nginx errors on /user endpoint",
+    "logs_path": "tests/data/logs/nginx_multi_error.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.getUserHandler",
+      "fix_summary": "Handle nil return from fetchUser to prevent upstream disconnection"
+    }
+  },
+  {
+    "id": "case_021",
+    "name": "nginx upstream timeout on /notify",
+    "logs_path": "tests/data/logs/nginx_multi_error.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.notifyHandler",
+      "fix_summary": "Add HTTP client timeout to prevent notification call from hanging"
+    }
+  },
+  {
+    "id": "case_022",
+    "name": "nginx 5xx and connection refused on /health",
+    "logs_path": "tests/data/logs/nginx_multi_access.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.healthHandler",
+      "fix_summary": "Add nil check on db before Ping and panic recovery in health handler"
+    }
+  },
+  {
+    "id": "case_023",
+    "name": "nginx connection errors on /profile",
+    "logs_path": "tests/data/logs/nginx_multi_access.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.profileHandler",
+      "fix_summary": "Close HTTP response body after reading to prevent connection leaks"
+    }
+  },
+  {
+    "id": "case_024",
+    "name": "DB connection refused in search",
+    "logs_path": "tests/data/logs/app_db_conn.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.searchDB",
+      "fix_summary": "Use connection pool and handle database connection errors gracefully"
+    }
+  },
+  {
+    "id": "case_025",
+    "name": "nginx 5xx cascade on multiple endpoints",
+    "logs_path": "tests/data/logs/nginx_multi_access.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.profileHandler",
+      "fix_summary": "Close HTTP response body in profileHandler to prevent connection pool exhaustion"
+    }
   }
 ]

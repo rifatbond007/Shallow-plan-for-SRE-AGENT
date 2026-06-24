@@ -1,0 +1,6 @@
+{"ts":"2026-06-23T14:01:00Z","level":"error","msg":"nil pointer dereference","endpoint":"/user","id":"","trace":"abc123"}
+{"ts":"2026-06-23T14:01:01Z","level":"error","msg":"internal server error","endpoint":"/user","id":"","trace":"abc123"}
+{"ts":"2026-06-23T14:01:02Z","level":"error","msg":"json: error calling Encode","endpoint":"/user","id":"","trace":"abc123"}
+{"ts":"2026-06-23T14:02:00Z","level":"error","msg":"nil pointer dereference","endpoint":"/user","id":"","trace":"def456"}
+{"ts":"2026-06-23T14:02:01Z","level":"error","msg":"runtime error: invalid memory address","endpoint":"/user","id":"","trace":"def456"}
+{"ts":"2026-06-23T14:05:00Z","level":"error","msg":"nil pointer on fetchUser","endpoint":"/user","id":"","trace":"ghi789"}

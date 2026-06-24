@@ -1,0 +1,6 @@
+{"ts":"2026-06-23T15:10:00Z","level":"error","msg":"SQL syntax error","endpoint":"/search","q":"test' OR '1'='1","trace":"sqli001"}
+{"ts":"2026-06-23T15:10:01Z","level":"error","msg":"pq: syntax error at or near \"OR\"","endpoint":"/search","q":"test' OR '1'='1","trace":"sqli001"}
+{"ts":"2026-06-23T15:11:00Z","level":"error","msg":"SQL injection attempt detected","endpoint":"/search","q":"admin' --","trace":"sqli002"}
+{"ts":"2026-06-23T15:11:01Z","level":"error","msg":"pq: syntax error at or near \"--\"","endpoint":"/search","q":"admin' --","trace":"sqli002"}
+{"ts":"2026-06-23T15:12:00Z","level":"error","msg":"SQL query failed","endpoint":"/search","q":"1; DROP TABLE items","trace":"sqli003"}
+{"ts":"2026-06-23T15:12:01Z","level":"error","msg":"pq: syntax error at or near \";\"","endpoint":"/search","q":"1; DROP TABLE items","trace":"sqli003"}

@@ -1,0 +1,6 @@
+{"ts":"2026-06-23T17:00:00Z","level":"warn","msg":"goroutine count exceeded threshold: 5120","service":"order","trace":"leak001"}
+{"ts":"2026-06-23T17:00:05Z","level":"warn","msg":"goroutine count exceeded threshold: 6144","service":"order","trace":"leak002"}
+{"ts":"2026-06-23T17:00:10Z","level":"error","msg":"too many open connections","endpoint":"/order","trace":"leak003"}
+{"ts":"2026-06-23T17:01:00Z","level":"error","msg":"connection pool exhausted","endpoint":"/profile","trace":"leak004"}
+{"ts":"2026-06-23T17:01:05Z","level":"error","msg":"dial tcp 127.0.0.1:9090: connect: cannot assign requested address","endpoint":"/profile","trace":"leak004"}
+{"ts":"2026-06-23T17:02:00Z","level":"warn","msg":"memory pressure high: 1.5GB RSS","service":"order","trace":"leak005"}

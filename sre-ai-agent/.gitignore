@@ -1,0 +1,7 @@
+.env
+bin/
+/eval
+tests/eval/report.json
+tests/data/code/sample-app/sample
+*.out
+*.test
