@@ -9,17 +9,18 @@ import (
 )
 
 type Hypothesis struct {
-	ID           string      `json:"id"`
-	IncidentID   string      `json:"incident_id"`
-	Rank         int         `json:"rank"`
-	Title        string      `json:"title"`
-	Summary      string      `json:"summary"`
-	Confidence   float64     `json:"confidence"`
-	Evidence     []Evidence  `json:"evidence"`
-	SuspectCode  CodeRef     `json:"suspect_code"`
-	RelatedFuncs []CodeRef   `json:"related_funcs,omitempty"`
-	PatternHit   *PatternMatch `json:"pattern_hit,omitempty"`
-	LLMReasoning string      `json:"llm_reasoning,omitempty"`
+	ID              string      `json:"id"`
+	IncidentID      string      `json:"incident_id"`
+	Rank            int         `json:"rank"`
+	Title           string      `json:"title"`
+	Summary         string      `json:"summary"`
+	Confidence      float64     `json:"confidence"`
+	Evidence        []Evidence  `json:"evidence"`
+	SuspectCode     CodeRef     `json:"suspect_code"`
+	SuspectFunction string      `json:"suspect_function,omitempty"`
+	RelatedFuncs    []CodeRef   `json:"related_funcs,omitempty"`
+	PatternHit      *PatternMatch `json:"pattern_hit,omitempty"`
+	LLMReasoning    string      `json:"llm_reasoning,omitempty"`
 }
 
 type Evidence struct {

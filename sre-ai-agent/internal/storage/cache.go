@@ -4,6 +4,8 @@ import (
 	"container/list"
 	"sync"
 	"time"
+
+	"github.com/rifatbond007/sre-ai-agent/pkg/metrics"
 )
 
 type item struct {
@@ -35,11 +37,13 @@ func (c *Cache) Get(key string) (any, bool) {
 	c.mu.RUnlock()
 
 	if !ok {
+		metrics.CacheMissesTotal.Inc()
 		return nil, false
 	}
 
 	it := elem.Value.(*item)
 	if time.Now().After(it.expiresAt) {
+		metrics.CacheMissesTotal.Inc()
 		c.mu.Lock()
 		c.removeElement(elem)
 		c.mu.Unlock()

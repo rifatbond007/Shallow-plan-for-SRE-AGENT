@@ -1,6 +1,7 @@
 services:
   sre-agent:
-    build: ..
+    image: sre-agent:dev
+    pull_policy: never
     ports:
       - "8080:8080"
     env_file: ../.env

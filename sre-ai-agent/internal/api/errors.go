@@ -18,7 +18,7 @@ func respondError(c *gin.Context, status int, code, msg string) {
 var errorStatus = map[string]int{
 	"INVALID_REQUEST":    http.StatusBadRequest,
 	"LOGS_TOO_LARGE":    http.StatusRequestEntityTooLarge,
-	"CLAUDE_UPSTREAM":   http.StatusBadGateway,
+	"LLM_UPSTREAM":      http.StatusBadGateway,
 	"TIMEOUT":           http.StatusGatewayTimeout,
 	"NOT_FOUND":         http.StatusNotFound,
 	"INTERNAL":          http.StatusInternalServerError,

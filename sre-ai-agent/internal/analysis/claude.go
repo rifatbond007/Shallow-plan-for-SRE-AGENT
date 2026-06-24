@@ -67,7 +67,7 @@ type claudeResponse struct {
 
 func (c *ClaudeClient) analyze(ctx context.Context, prompt, system string) (string, error) {
 	start := time.Now()
-	metrics.ClaudeRequestsTotal.Inc()
+	metrics.LLMRequestsTotal.Inc()
 
 	sysPrompt := system
 	if sysPrompt == "" {
@@ -95,7 +95,7 @@ func (c *ClaudeClient) analyze(ctx context.Context, prompt, system string) (stri
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(reqBody))
 	if err != nil {
-		metrics.ClaudeRequestDuration.Observe(time.Since(start).Seconds())
+		metrics.LLMRequestDuration.Observe(time.Since(start).Seconds())
 		return "", fmt.Errorf("request: %w", err)
 	}
 
@@ -105,16 +105,16 @@ func (c *ClaudeClient) analyze(ctx context.Context, prompt, system string) (stri
 
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
-		metrics.ClaudeRequestDuration.Observe(time.Since(start).Seconds())
-		metrics.ClaudeErrorsTotal.WithLabelValues("network").Inc()
+		metrics.LLMRequestDuration.Observe(time.Since(start).Seconds())
+		metrics.LLMErrorsTotal.WithLabelValues("network").Inc()
 		return "", fmt.Errorf("api call: %w", err)
 	}
 	defer resp.Body.Close()
 
-	metrics.ClaudeRequestDuration.Observe(time.Since(start).Seconds())
+	metrics.LLMRequestDuration.Observe(time.Since(start).Seconds())
 
 	if resp.StatusCode != 200 {
-		metrics.ClaudeErrorsTotal.WithLabelValues(fmt.Sprintf("http_%d", resp.StatusCode)).Inc()
+		metrics.LLMErrorsTotal.WithLabelValues(fmt.Sprintf("http_%d", resp.StatusCode)).Inc()
 		return "", fmt.Errorf("claude API: %s", resp.Status)
 	}
 
@@ -151,13 +151,13 @@ func (c *ClaudeClient) AnalyzeIncident(ctx context.Context, inc ingest.Incident,
 	var hypotheses []Hypothesis
 	for _, h := range resp.Hypotheses {
 		hyp := Hypothesis{
-			ID:         fmt.Sprintf("hyp_%x", time.Now().UnixNano()),
-			IncidentID: inc.ID,
-			Rank:       h.Rank,
-			Title:      h.Title,
-			Summary:    h.Summary,
-			Confidence: h.Confidence,
-			LLMReasoning: h.Summary,
+			ID:              fmt.Sprintf("hyp_%x", time.Now().UnixNano()),
+			IncidentID:      inc.ID,
+			Rank:            h.Rank,
+			Title:           h.Title,
+			Summary:         h.Summary,
+			Confidence:      h.Confidence,
+			SuspectFunction: h.SuspectFunction,
 		}
 
 		for _, logID := range h.EvidenceLogIDs {

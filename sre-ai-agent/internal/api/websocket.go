@@ -75,8 +75,9 @@ func (h *handlers) analyzeStreamWS(c *gin.Context) {
 	}, sink)
 	if err != nil {
 		code := "INTERNAL"
-		if strings.Contains(err.Error(), "claude") || strings.Contains(err.Error(), "Claude") || strings.Contains(err.Error(), "gemini") || strings.Contains(err.Error(), "Gemini") {
-			code = "CLAUDE_UPSTREAM"
+		errStr := strings.ToLower(err.Error())
+		if strings.Contains(errStr, "claude") || strings.Contains(errStr, "gemini") || strings.Contains(errStr, "anthropic") {
+			code = "LLM_UPSTREAM"
 		}
 		writeWSError(conn, code, err.Error())
 		return

@@ -35,8 +35,6 @@ func NewEngine(llm LLMClient, maxLogBytes int) Engine {
 func (e *engine) Analyze(ctx context.Context, req AnalyzeRequest) (*AnalysisResult, error) {
 	start := time.Now()
 
-	metrics.HTTPRequestsTotal.WithLabelValues("POST", "/analyze", "200")
-
 	if len(req.Logs) > e.maxLogBytes {
 		return nil, fmt.Errorf("logs exceed max size of %d bytes", e.maxLogBytes)
 	}

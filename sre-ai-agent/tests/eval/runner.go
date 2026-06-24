@@ -55,13 +55,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	claude := analysis.NewClaudeClient(
-		os.Getenv("SRE_AGENT_ANTHROPIC_API_KEY"),
-		"claude-sonnet-4-20250514",
-		60*time.Second,
-	)
+	var llm analysis.LLMClient
+	switch os.Getenv("SRE_AGENT_LLM_PROVIDER") {
+	case "gemini":
+		llm = analysis.NewGeminiClient(
+			os.Getenv("SRE_AGENT_GEMINI_API_KEY"),
+			"gemini-2.0-flash",
+			60*time.Second,
+		)
+	default:
+		llm = analysis.NewClaudeClient(
+			os.Getenv("SRE_AGENT_ANTHROPIC_API_KEY"),
+			"claude-sonnet-4-20250514",
+			60*time.Second,
+		)
+	}
 
-	eng := analysis.NewEngine(claude, 5_000_000)
+	eng := analysis.NewEngine(llm, 5_000_000)
 
 	var results []EvalResult
 	for _, c := range cases {
@@ -90,7 +100,7 @@ func main() {
 		top1Func := ""
 
 		for i, h := range result.Hypotheses {
-			funcName := h.SuspectCode.File
+			funcName := h.SuspectFunction
 			if i == 0 {
 				top1Func = funcName
 			}

@@ -86,7 +86,7 @@ func BuildFixPrompt(hypothesis Hypothesis, candidates []codebase.ScoredFunction)
 	var targetBody string
 
 	for _, sf := range candidates {
-		if sf.Function.ID == hypothesis.SuspectCode.File {
+		if sf.Function.ID == hypothesis.SuspectFunction {
 			targetFunc = sf.Function.ID
 			targetFile = sf.Function.File
 			targetLine = sf.Function.Line

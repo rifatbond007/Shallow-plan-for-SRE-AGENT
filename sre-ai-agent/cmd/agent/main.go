@@ -55,7 +55,7 @@ func main() {
 
 	store := storage.NewStore(cfg.CacheMaxEntries, cfg.CacheTTL)
 
-	router := api.NewRouter(engine, store, zapLog, cfg.APIKey, cfg.MaxLogBytes)
+	router := api.NewRouter(engine, store, zapLog, cfg.APIKey, cfg.MaxLogBytes, cfg.RateLimitRPS, cfg.RateLimitBurst)
 
 	if cfg.APIKey != "" {
 		zapLog.Info("API key auth enabled for /api/v1/analyze")

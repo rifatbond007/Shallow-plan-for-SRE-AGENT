@@ -35,7 +35,6 @@ func (h *handlers) readyz(c *gin.Context) {
 }
 
 func (h *handlers) analyze(c *gin.Context) {
-	metrics.HTTPRequestsTotal.WithLabelValues("POST", "/analyze", "200")
 
 	body := c.Request.Body
 	body = http.MaxBytesReader(c.Writer, body, int64(h.maxLogBytes))
@@ -72,8 +71,9 @@ func (h *handlers) analyze(c *gin.Context) {
 		h.log.Error("analysis failed", zap.Error(err))
 		code := "INTERNAL"
 		status := http.StatusInternalServerError
-		if strings.Contains(err.Error(), "claude") || strings.Contains(err.Error(), "Claude") {
-			code = "CLAUDE_UPSTREAM"
+		errStr := strings.ToLower(err.Error())
+		if strings.Contains(errStr, "claude") || strings.Contains(errStr, "gemini") || strings.Contains(errStr, "anthropic") {
+			code = "LLM_UPSTREAM"
 			status = http.StatusBadGateway
 		}
 		respondError(c, status, code, err.Error())

@@ -17,14 +17,14 @@ var (
 		Buckets: prometheus.DefBuckets,
 	}, []string{"method", "path"})
 
-	ClaudeRequestsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "sre_agent_claude_requests_total",
-		Help: "Total Claude API calls",
+	LLMRequestsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "sre_agent_llm_requests_total",
+		Help: "Total LLM API calls",
 	})
 
-	ClaudeRequestDuration = promauto.NewHistogram(prometheus.HistogramOpts{
-		Name:    "sre_agent_claude_request_duration_seconds",
-		Help:    "Claude API call latency",
+	LLMRequestDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "sre_agent_llm_request_duration_seconds",
+		Help:    "LLM API call latency",
 		Buckets: prometheus.DefBuckets,
 	})
 
@@ -43,8 +43,8 @@ var (
 		Help: "Total cache misses",
 	})
 
-	ClaudeErrorsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "sre_agent_claude_api_errors_total",
-		Help: "Claude API errors by kind",
+	LLMErrorsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "sre_agent_llm_api_errors_total",
+		Help: "LLM API errors by kind",
 	}, []string{"kind"})
 )

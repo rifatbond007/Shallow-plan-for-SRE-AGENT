@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewRouter(engine analysis.Engine, store *storage.Store, log *zap.Logger, apiKey string, maxLogBytes int) *gin.Engine {
+func NewRouter(engine analysis.Engine, store *storage.Store, log *zap.Logger, apiKey string, maxLogBytes int, rateLimitRPS float64, rateLimitBurst int) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(requestLogger(log))
@@ -22,6 +22,10 @@ func NewRouter(engine analysis.Engine, store *storage.Store, log *zap.Logger, ap
 
 	if apiKey != "" {
 		r.Use(authMiddleware(apiKey))
+	}
+
+	if rateLimitRPS > 0 {
+		r.Use(rateLimiter(rateLimitRPS, rateLimitBurst))
 	}
 
 	r.GET("/api/v1/healthz", h.healthz)
