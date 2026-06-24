@@ -42,4 +42,9 @@ var (
 		Name: "sre_agent_cache_misses_total",
 		Help: "Total cache misses",
 	})
+
+	ClaudeErrorsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "sre_agent_claude_api_errors_total",
+		Help: "Claude API errors by kind",
+	}, []string{"kind"})
 )

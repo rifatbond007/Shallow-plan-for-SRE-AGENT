@@ -1,0 +1,32 @@
+[
+  {
+    "id": "case_001",
+    "name": "checkout upstream timeout",
+    "logs_path": "tests/data/logs/app_error.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.checkoutHandler",
+      "fix_summary": "Add HTTP client timeout to payment service call"
+    }
+  },
+  {
+    "id": "case_002",
+    "name": "nginx 502/504 cascade",
+    "logs_path": "tests/data/logs/nginx_access.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.checkoutHandler",
+      "fix_summary": "Add circuit breaker or retry with backoff to payment service call"
+    }
+  },
+  {
+    "id": "case_003",
+    "name": "nginx error upstream failure",
+    "logs_path": "tests/data/logs/nginx_error.log",
+    "codebase_path": "tests/data/code/sample-app",
+    "ground_truth": {
+      "function": "main.checkoutHandler",
+      "fix_summary": "Handle upstream payment service failure gracefully"
+    }
+  }
+]

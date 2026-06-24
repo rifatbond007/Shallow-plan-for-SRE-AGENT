@@ -1,0 +1,4 @@
+2026/06/23 12:35:01 [error] 1234#0: *567 upstream timed out (110: Connection timed out) while connecting to upstream, client: 192.168.1.2, server: _, request: "POST /checkout HTTP/1.1", upstream: "http://127.0.0.1:8081/charge"
+2026/06/23 12:35:02 [error] 1234#0: *568 connect() failed (111: Connection refused) while connecting to upstream, client: 192.168.1.3, server: _, request: "POST /checkout HTTP/1.1", upstream: "http://127.0.0.1:8081/charge"
+2026/06/23 12:36:01 [error] 1234#0: *569 upstream timed out (110: Connection timed out) while connecting to upstream, client: 192.168.1.8, server: _, request: "POST /checkout HTTP/1.1", upstream: "http://127.0.0.1:8081/charge"
+2026/06/23 12:36:02 [error] 1234#0: *570 connect() failed (111: Connection refused) while connecting to upstream, client: 192.168.1.9, server: _, request: "POST /checkout HTTP/1.1", upstream: "http://127.0.0.1:8081/charge"

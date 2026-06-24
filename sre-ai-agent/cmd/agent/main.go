@@ -7,17 +7,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 
+	"github.com/rifatbond007/sre-ai-agent/internal/api"
+	"github.com/rifatbond007/sre-ai-agent/internal/analysis"
 	"github.com/rifatbond007/sre-ai-agent/internal/config"
+	"github.com/rifatbond007/sre-ai-agent/internal/storage"
 	"github.com/rifatbond007/sre-ai-agent/pkg/logger"
-	"github.com/rifatbond007/sre-ai-agent/pkg/metrics"
 )
 
 func main() {
@@ -31,26 +30,17 @@ func main() {
 		log.Fatalf("logger: %v", err)
 	}
 
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Use(func(c *gin.Context) {
-		start := time.Now()
-		c.Next()
-		status := strconv.Itoa(c.Writer.Status())
-		metrics.HTTPRequestsTotal.WithLabelValues(c.Request.Method, c.FullPath(), status).Inc()
-		metrics.HTTPRequestDuration.WithLabelValues(c.Request.Method, c.FullPath()).Observe(time.Since(start).Seconds())
-	})
+	claude := analysis.NewClaudeClient(
+		cfg.Anthropic.APIKey,
+		cfg.Anthropic.Model,
+		cfg.Anthropic.Timeout,
+	)
 
-	r.GET("/api/v1/healthz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	engine := analysis.NewEngine(claude, cfg.MaxLogBytes)
 
-	r.GET("/api/v1/readyz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	store := storage.NewStore(cfg.CacheMaxEntries, cfg.CacheTTL)
 
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	router := api.NewRouter(engine, store, zapLog, cfg.APIKey, cfg.MaxLogBytes)
 
 	if cfg.APIKey != "" {
 		zapLog.Info("API key auth enabled for /api/v1/analyze")
@@ -60,7 +50,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		Handler:      r,
+		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,

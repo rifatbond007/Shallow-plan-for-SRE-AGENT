@@ -20,5 +20,8 @@ docker-run:
 lint:
 	golangci-lint run ./...
 
+eval:
+	go run ./tests/eval/runner.go
+
 clean:
 	rm -rf bin/

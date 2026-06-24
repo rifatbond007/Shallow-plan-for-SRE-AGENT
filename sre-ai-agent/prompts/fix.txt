@@ -1,0 +1,16 @@
+Top hypothesis:
+{top_hypothesis_json}
+
+Function to patch: {function.id} at {file}:{line}
+Current body:
+```go
+{function.body}
+```
+
+Produce a JSON object:
+{
+  "summary": "...",
+  "replacement": "<full new function body, valid Go>",
+  "unified_diff": "<optional unified diff>",
+  "caveats": ["..."]
+}

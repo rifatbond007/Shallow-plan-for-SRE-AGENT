@@ -1,0 +1,6 @@
+{"ts":"2026-06-23T12:35:01Z","level":"error","msg":"payment service timeout","service":"checkout"}
+{"ts":"2026-06-23T12:35:02Z","level":"error","msg":"upstream connection refused","service":"checkout"}
+{"ts":"2026-06-23T12:35:03Z","level":"error","msg":"context deadline exceeded","service":"checkout"}
+{"ts":"2026-06-23T12:36:00Z","level":"error","msg":"checkout failed: connection refused","service":"checkout"}
+{"ts":"2026-06-23T12:36:01Z","level":"error","msg":"upstream timed out","service":"checkout"}
+{"ts":"2026-06-23T12:36:02Z","level":"error","msg":"payment service unreachable","service":"checkout"}

@@ -1,0 +1,34 @@
+INCIDENT #{incident.id}
+Window: {incident.started_at} -> {incident.ended_at}
+Errors: {incident.error_count}, Warnings: {incident.warn_count}
+Top message: {incident.top_error}
+Pattern matches: {incident.signatures}
+
+LOG ENTRIES (most recent first):
+{formatted_log_entries}
+
+CANDIDATE FUNCTIONS (ranked by code-linker score):
+{for each function:
+  - {function.id}  ({function.file}:{function.line})
+  Signature: {function.signature}
+  Body:
+  ```go
+  {function.body}
+  ```
+  Called by: {function.callers_summary}
+  Calls:     {function.callees_summary}
+}
+
+Return a JSON object of the form:
+{
+  "hypotheses": [
+    {
+      "rank": 1,
+      "title": "...",
+      "summary": "...",
+      "confidence": 0.0,
+      "suspect_function": "pkg.Func",
+      "evidence_log_ids": ["..."]
+    }
+  ]
+}
