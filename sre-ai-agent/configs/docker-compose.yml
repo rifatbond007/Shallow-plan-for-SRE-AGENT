@@ -1,0 +1,12 @@
+services:
+  sre-agent:
+    build: ..
+    ports:
+      - "8080:8080"
+    env_file: ../.env
+    volumes:
+      - ../tests/data/code/sample-app:/codebase:ro
+      - sre-cache:/tmp/sre-agent/cache
+
+volumes:
+  sre-cache:
